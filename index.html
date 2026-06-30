@@ -4,10 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>小新风快捷首页</title>
-    <link rel="manifest" href="./manifest.json" />
     <link rel="stylesheet" href="./styles.css" />
-    <meta name="theme-color" content="#2775d1" />
-    <meta name="color-scheme" content="light dark" />
   </head>
   <body>
     <div class="paper-grain" aria-hidden="true"></div>
@@ -18,17 +15,13 @@
       <span class="doodle doodle-badge">Action</span>
     </div>
 
-    <div class="dark-toggle-wrap">
-      <button id="darkToggleButton" class="dark-toggle" type="button" aria-label="切换深色模式" title="切换深色模式">暗</button>
-    </div>
-
     <main class="shell">
       <section class="topbar hero-strip" aria-label="今日状态">
         <img class="hero-strip-main" src="./assets/custom/shin-surprise.jpg" alt="蜡笔小新惊喜表情" />
         <div class="hero-strip-copy">
           <p class="eyebrow" id="dateText">今天</p>
-          <strong id="heroQuoteText">今天想去哪？</strong>
-          <span id="heroQuoteSub">先搜，或者直接点下面的快捷方式。</span>
+          <strong>今天想去哪？</strong>
+          <span>先搜，或者直接点下面的快捷方式。</span>
         </div>
         <img class="hero-strip-side" src="./assets/custom/kasukabe-sky.jpg" alt="春日部防卫队在草地上" />
       </section>
@@ -72,8 +65,8 @@
           <button class="search-button" type="submit">出发</button>
         </form>
         <div class="quick-engines" id="engineButtons" aria-label="搜索引擎快捷切换"></div>
-        <div class="search-history" id="searchHistory" hidden></div>
       </section>
+
       <section class="toolbar" aria-label="快捷方式工具">
         <div class="tabs" id="categoryTabs"></div>
         <div class="actions">
@@ -110,25 +103,14 @@
         <div class="weather-panel">
           <div class="weather-icon" id="weatherIcon" aria-hidden="true">?</div>
           <div>
-          <p class="weather-kicker">当前天气</p>
-          <strong id="weatherTemp">定位后显示</strong>
-          <span id="weatherLocation" style="margin-top:4px;color:var(--muted);font-size:13px;font-weight:700;"></span>
-          <span id="weatherDesc">允许定位后，小新帮你看天气。</span>
+            <p class="weather-kicker">当前天气</p>
+            <strong id="weatherTemp">定位后显示</strong>
+            <span id="weatherDesc">允许定位后，小新帮你看天气。</span>
           </div>
           <button id="weatherRefreshButton" class="weather-refresh" type="button">刷新</button>
         </div>
-        <div class="history-panel" aria-label="历史上的今天">
-          <div class="history-card">
-            <p class="history-kicker">历史上的今天</p>
-            <div class="history-main">
-              <strong class="history-year" id="historyYear">--</strong>
-              <strong class="history-text" id="historyText">加载中...</strong>
-            </div>
-            <div class="history-tooltip" id="historyTooltip">
-              <p id="historyTooltipText"></p>
-              <a id="historyTooltipLink" target="_blank" rel="noreferrer" hidden>在 Wikipedia 上阅读</a>
-            </div>
-          </div>
+        <div class="weather-character-art" aria-hidden="true">
+          <img class="weather-scene" src="./assets/custom/kasukabe-evening.jpg" alt="" />
         </div>
       </section>
 
@@ -247,16 +229,6 @@
       </article>
     </template>
 
-    <div id="contextMenu" class="context-menu" hidden>
-      <button type="button" data-action="open">在新标签页打开</button>
-      <button type="button" data-action="edit">编辑</button>
-      <button type="button" data-action="pin">置顶/取消置顶</button>
-      <button type="button" data-action="delete" class="danger-button">删除</button>
-    </div>
-
     <script src="./script.js"></script>
-    <script>
-      if ("serviceWorker" in navigator) navigator.serviceWorker.register("./sw.js");
-    </script>
   </body>
 </html>

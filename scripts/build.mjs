@@ -1,19 +1,12 @@
 import { cp, mkdir, rm } from "node:fs/promises";
-import path from "node:path";
 
-const OUT_DIR = "dist";
+const files = ["index.html", "styles.css", "script.js", "README.md", "sw.js"];
 
-await rm(OUT_DIR, { recursive: true, force: true });
-await mkdir(OUT_DIR, { recursive: true });
+await rm("dist", { recursive: true, force: true });
+await mkdir("dist", { recursive: true });
 
-await cp("index.html", path.join(OUT_DIR, "index.html"));
-await cp("styles.css", path.join(OUT_DIR, "styles.css"));
-await cp("script.js", path.join(OUT_DIR, "script.js"));
-
-for (const file of ["manifest.json", "sw.js"]) {
-  try { await cp(file, path.join(OUT_DIR, file)); } catch { /* optional */ }
+for (const file of files) {
+  await cp(file, `dist/${file}`);
 }
 
-try { await cp("assets", path.join(OUT_DIR, "assets"), { recursive: true }); } catch { /* optional */ }
-
-console.log("Build complete: dist/ ready.");
+await cp("assets", "dist/assets", { recursive: true });

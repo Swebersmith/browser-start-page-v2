@@ -2,9 +2,6 @@ const STORAGE_KEY = "browser-launchpad-shortcuts-v1";
 const ENGINE_KEY = "browser-launchpad-engine-v1";
 const WIDGET_KEY = "browser-launchpad-widgets-v1";
 const SYNC_KEY = "browser-launchpad-sync-key-v1";
-const DARK_KEY = "browser-launchpad-dark-v1";
-const HISTORY_KEY = "browser-launchpad-history-v1";
-const MAX_HISTORY = 20;
 const ALL_CATEGORY = "全部";
 const DEFAULT_CATEGORY = "常用";
 
@@ -39,13 +36,6 @@ const weatherCodeMap = {
   96: { label: "雷雨伴冰雹", mark: "雷" },
   99: { label: "强雷雨伴冰雹", mark: "雷" },
 };
-
-async function hashSyncKey(text) {
-  if (!text) return "";
-  const data = new TextEncoder().encode(text.trim());
-  const hash = await crypto.subtle.digest("SHA-256", data);
-  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
-}
 
 function createId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -124,29 +114,14 @@ const elements = {
   closeWidgetDialogButton: document.querySelector("#closeWidgetDialogButton"),
   cancelWidgetDialogButton: document.querySelector("#cancelWidgetDialogButton"),
   deleteWidgetButton: document.querySelector("#deleteWidgetButton"),
-  darkToggleButton: document.querySelector("#darkToggleButton"),
-  heroQuoteText: document.querySelector("#heroQuoteText"),
-  heroQuoteSub: document.querySelector("#heroQuoteSub"),
-  searchHistory: document.querySelector("#searchHistory"),
-  weatherLocation: document.querySelector("#weatherLocation"),
-  historyYear: document.querySelector("#historyYear"),
-  historyText: document.querySelector("#historyText"),
-  historyTooltipText: document.querySelector("#historyTooltipText"),
-  historyTooltipLink: document.querySelector("#historyTooltipLink"),
-  contextMenu: document.querySelector("#contextMenu"),
 };
 
 let shortcuts = loadShortcuts();
 let widgets = loadWidgets();
-let searchHistoryList = loadSearchHistory();
 let selectedCategory = ALL_CATEGORY;
 let editingId = null;
 let editingWidgetId = null;
-let searchQuery = "";
-let contextMenuTargetId = null;
-let contextMenuTimer = null;
 let syncEnabled = false;
-let weatherCoords = null;
 let isApplyingRemoteData = false;
 let syncSaveTimer = null;
 let draggedShortcutId = null;
@@ -203,219 +178,20 @@ function saveWidgets() {
   scheduleCloudSave();
 }
 
-function loadSearchHistory() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY));
-    return Array.isArray(parsed) ? parsed.slice(0, MAX_HISTORY) : [];
-  } catch { return []; }
-}
-
-function addSearchHistory(query) {
-  const trimmed = query.trim();
-  if (!trimmed || trimmed.length > 80) return;
-  searchHistoryList = [trimmed, ...searchHistoryList.filter((i) => i !== trimmed)].slice(0, MAX_HISTORY);
-  saveHistoryAndSync();
-}
-
-function saveHistoryAndSync() {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(searchHistoryList));
-  scheduleCloudSave();
-}
-
-function saveSearchHistory() { localStorage.setItem(HISTORY_KEY, JSON.stringify(searchHistoryList)); }
-
-function renderSearchHistory() {
-  elements.searchHistory.innerHTML = "";
-  if (!searchHistoryList.length) { elements.searchHistory.hidden = true; return; }
-  elements.searchHistory.hidden = false;
-  searchHistoryList.forEach((query) => {
-    const row = document.createElement("div");
-    row.className = "history-item";
-    const text = document.createElement("span");
-    text.textContent = query;
-    text.addEventListener("click", () => {
-      elements.searchInput.value = query;
-      elements.searchForm.dispatchEvent(new Event("submit", { cancelable: true }));
-      elements.searchHistory.hidden = true;
-    });
-    const removeBtn = document.createElement("button");
-    removeBtn.textContent = "x";
-    removeBtn.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      searchHistoryList = searchHistoryList.filter((i) => i !== query);
-      saveSearchHistory();
-      renderSearchHistory();
-    });
-    row.append(text, removeBtn);
-    elements.searchHistory.append(row);
-  });
-}
-
 function setSyncStatus(message, tone = "neutral") {
   elements.syncStatus.textContent = message;
   elements.syncStatus.dataset.tone = tone;
 }
 
-// Daily Shin-chan quotes (deterministic per date)
-function getDailyQuote() {
-  const quotes = [
-    ["\"嗨，美女，你喜欢吃青椒吗？\"", "—— 野原新之助"],
-    ["\"我叫野原新之助，今年五岁！\"", "—— 野原新之助"],
-    ["\"动感超人！哔哔哔哔——\"", "—— 野原新之助"],
-    ["\"小白！棉花糖！\"", "—— 野原新之助"],
-    ["\"我要成为大人的话，一定要当一个什么都不用做的大人。\"", "—— 野原新之助"],
-    ["\"妈妈，我要看动感超人！\"", "—— 野原新之助"],
-    ["\"风间，我们来玩装死游戏吧！\"", "—— 野原新之助"],
-    ["\"我的梦想是，吃遍全世界所有的点心！\"", "—— 野原新之助"],
-    ["\"小姐，请问你家的WIFI密码是多少？\"", "—— 野原新之助"],
-    ["\"如果遇到困难，就跳奇怪的舞解决！\"", "—— 野原新之助"],
-    ["\"诶？这不是我的错，是地球的引力太大了。\"", "—— 野原新之助"],
-    ["\"妮妮，你的真实玩偶让我也用一下嘛！\"", "—— 野原新之助"],
-    ["\"只要有动感超人，一切都会好起来的。\"", "—— 野原新之助"],
-    ["\"我可是春日部防卫队队长哦！\"", "—— 野原新之助"],
-    ["\"阿呆，你的鼻涕今天也很健康呢！\"", "—— 野原新之助"],
-    ["\"人生嘛，开心最重要啦！\"", "—— 野原广志"],
-    ["\"就算被嘲笑也没关系，因为笑笑就过去了。\"", "—— 野原新之助"],
-    ["\"晚饭吃什么？咖喱？太好了！\"", "—— 野原新之助"],
-    ["\"我不想上学，我想在家看电视。\"", "—— 野原新之助"],
-    ["\"美冴妈妈生气的时候，整个春日部都会地震。\"", "—— 野原新之助"],
-    ["\"正男，不要哭了，我们一起去玩吧！\"", "—— 野原新之助"],
-    ["\"这就是传说中的大人世界吗？好无聊啊！\"", "—— 野原新之助"],
-    ["\"世界上的女人分为两种：漂亮的和更漂亮的。\"", "—— 野原新之助"],
-    ["\"傻气也是才能的一种！\"", "—— 野原新之助"],
-    ["\"大人总是在说'等一下'，到底要等到什么时候嘛。\"", "—— 野原新之助"],
-    ["\"我的人生信条是：能坐着就不站着，能躺着就不坐着。\"", "—— 野原新之助"],
-    ["\"这件衣服好土哦，不过很适合妈妈！\"", "—— 野原新之助"],
-    ["\"喜欢一个人不需要理由，就像我喜欢娜娜子姐姐一样。\"", "—— 野原新之助"],
-    ["\"如果我是超级英雄，我的必杀技就是'装死'。\"", "—— 野原新之助"],
-    ["\"风间，你每天都学那么多东西，头不会爆炸吗？\"", "—— 野原新之助"],
-    ["\"我的人生，按我自己的节奏来就好了。\"", "—— 野原新之助"],
-    ["\"世界上最重要的就是家人和点心。\"", "—— 野原新之助"],
-  ];
-  const today = new Date();
-  const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
-  const index = (seed * 2654435761 >>> 0) % quotes.length;
-  return quotes[index];
-}
-
-function renderDailyQuote() {
-  const [quote, author] = getDailyQuote();
-  elements.heroQuoteText.textContent = quote;
-  elements.heroQuoteSub.textContent = author;
-}
-
-async function reverseGeocode(lat, lon) {
-  try {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&accept-language=zh`;
-    const resp = await fetch(url, { headers: { "User-Agent": "ShinchanLaunchpad/1.0" } });
-    if (!resp.ok) return "";
-    const data = await resp.json();
-    const addr = data.address || {};
-    return addr.city || addr.town || addr.county || addr.state || "";
-  } catch { return ""; }
-}
-
-async function loadTodayInHistory() {
-  const now = new Date();
-  const mm = now.getMonth() + 1;
-  const dd = now.getDate();
-  const todaySeed = now.getFullYear() * 10000 + mm * 100 + dd;
-
-  // Try domestic free API first
-  try {
-    const resp = await fetch(`https://api.vvhan.com/api/history?type=json`, { signal: AbortSignal.timeout(5000) });
-    if (resp.ok) {
-      const data = await resp.json();
-      if (data.success && Array.isArray(data.data) && data.data.length) {
-        const idx = (todaySeed * 1103515245 + 12345 >>> 0) % data.data.length;
-        const event = data.data[idx];
-        elements.historyYear.textContent = `${event.year || "--"} 年`;
-        elements.historyText.textContent = event.title || event.event || "";
-        elements.historyTooltipText.textContent = event.desc || event.title || "";
-        elements.historyTooltipLink.hidden = true;
-        return;
-      }
-    }
-  } catch { /* fallback to local dataset */ }
-
-  // Fallback to local Chinese history dataset
-  const candidates = CHINA_HISTORY.filter((e) => e[0] === mm && e[1] === dd);
-
-  if (!candidates.length) {
-    elements.historyYear.textContent = "--";
-    elements.historyText.textContent = "今天没有特别的历史事件记录。";
-    elements.historyTooltipText.textContent = "";
-    elements.historyTooltipLink.hidden = true;
-    return;
-  }
-
-  const idx = (todaySeed * 1103515245 + 12345 >>> 0) % candidates.length;
-  const [, , year, text, desc = ""] = candidates[idx];
-
-  elements.historyYear.textContent = `${year} 年`;
-  elements.historyText.textContent = text;
-  elements.historyTooltipText.textContent = desc || text;
-  elements.historyTooltipLink.hidden = true;
-}
-
-// Chinese historical events dataset
-const CHINA_HISTORY = [
-[1,1,1912,"中华民国成立，孙中山就任临时大总统","辛亥革命推翻清朝，结束两千多年封建帝制。"],
-[1,8,1976,"周恩来总理逝世","新中国第一任总理周恩来逝世，举国哀悼。"],
-[1,15,1935,"遵义会议召开","确立毛泽东在党和红军中的领导地位，是中共历史上生死攸关的转折点。"],
-[1,18,1919,"巴黎和会召开","对中国的不公正处理直接引发五四运动。"],
-[1,31,1949,"北平和平解放","中国人民解放军进入北平城，千年古都和平解放。"],
-[2,1,1662,"郑成功收复台湾","荷兰殖民者投降，台湾重回祖国怀抱。"],
-[2,12,1912,"清帝溥仪宣布退位","清朝灭亡，封建帝制正式终结。"],
-[2,19,1997,"邓小平逝世","改革开放总设计师邓小平逝世，享年93岁。"],
-[2,21,1972,"尼克松访华","美国总统尼克松抵达北京，中美关系正常化迈出关键一步。"],
-[3,5,1963,"毛泽东题词'向雷锋同志学习'","雷锋成为全国人民学习的榜样。"],
-[3,12,1925,"孙中山逝世","中国民主革命先行者孙中山逝世，留下'革命尚未成功'的遗言。"],
-[4,15,1912,"泰坦尼克号沉没","豪华邮轮泰坦尼克号在处女航中撞上冰山沉没。"],
-[4,18,1955,"万隆会议召开","周恩来提出'求同存异'方针。"],
-[4,24,1970,"东方红一号发射成功","中国第一颗人造卫星发射成功，播放《东方红》乐曲。"],
-[5,4,1919,"五四运动爆发","北京学生游行示威反对巴黎和会，成为中国新民主主义革命的开端。"],
-[5,12,2008,"汶川发生8.0级特大地震","造成重大人员伤亡和财产损失。"],
-[5,23,1951,"西藏和平解放","中央政府与西藏地方政府签署和平解放协议。"],
-[6,17,1967,"中国第一颗氢弹爆炸成功","在罗布泊上空成功爆炸，威力330万吨TNT当量。"],
-[7,1,1921,"中国共产党成立","中共一大在上海召开，中国共产党正式成立。"],
-[7,1,1997,"香港回归祖国","香港特别行政区成立，结束英国殖民统治。"],
-[7,7,1937,"卢沟桥事变爆发","日本侵略军进攻卢沟桥，全面抗日战争爆发。"],
-[7,13,2001,"北京申奥成功","国际奥委会宣布北京获得2008年夏季奥运会主办权。"],
-[7,20,1969,"人类首次登月","阿波罗11号宇航员阿姆斯特朗踏上月球表面。"],
-[7,28,1976,"唐山大地震","河北唐山发生7.8级大地震，24万余人遇难。"],
-[8,1,1927,"南昌起义","标志着中国共产党独立领导武装斗争的开始。"],
-[8,8,2008,"北京奥运会开幕","第29届夏季奥林匹克运动会在北京国家体育场开幕。"],
-[8,15,1945,"日本宣布无条件投降","裕仁天皇广播宣布接受波茨坦公告，二战亚洲战场结束。"],
-[9,3,1945,"抗日战争胜利纪念日","中国人民抗日战争取得伟大胜利。"],
-[9,9,1976,"毛泽东逝世","中共中央主席毛泽东在北京逝世，享年83岁。"],
-[9,18,1931,"九一八事变","日本关东军炸毁南满铁路发动侵华战争。"],
-[10,1,1949,"中华人民共和国成立","毛泽东在天安门城楼宣布新中国成立。"],
-[10,10,1911,"辛亥革命爆发","武昌起义成功，推翻清朝统治。"],
-[10,16,1964,"中国第一颗原子弹爆炸成功","成为世界上第五个拥有核武器的国家。"],
-[10,25,1971,"中国恢复在联合国合法席位","联大通过2758号决议。"],
-[11,7,1917,"俄国十月革命爆发","列宁领导的布尔什维克党建立首个社会主义国家。"],
-[11,12,1866,"孙中山诞辰","中国民主革命先驱孙中山在广东香山出生。"],
-[12,9,1935,"一二·九运动爆发","北平学生举行抗日救国示威游行。"],
-[12,11,2001,"中国正式加入世界贸易组织","WTO多哈会议通过中国入世决定。"],
-[12,12,1936,"西安事变","张学良杨虎城发动兵谏，迫使蒋介石停止内战一致抗日。"],
-[12,13,1937,"南京大屠杀开始","日军攻陷南京后在六周内屠杀30万中国军民。"],
-[12,18,1978,"十一届三中全会召开","揭开了改革开放的序幕。"],
-[12,20,1999,"澳门回归祖国","澳门特别行政区成立，结束葡萄牙400多年统治。"],
-[12,26,1893,"毛泽东诞辰","毛泽东出生于湖南湘潭韶山冲。"],
-];
-
 function getSyncPayload() {
   return {
     shortcuts,
     widgets,
-    searchHistory: searchHistoryList,
   };
 }
 
 async function requestSync(method, syncKey, payload = null) {
-  const hashedKey = await hashSyncKey(syncKey);
-  const response = await fetch(`/api/sync/${encodeURIComponent(hashedKey)}`, {
+  const response = await fetch(`/api/sync/${encodeURIComponent(syncKey)}`, {
     method,
     headers: payload ? { "content-type": "application/json" } : undefined,
     body: payload ? JSON.stringify(payload) : undefined,
@@ -432,22 +208,17 @@ async function requestSync(method, syncKey, payload = null) {
 }
 
 function applyRemotePayload(payload) {
-  if (!payload || !Array.isArray(payload.shortcuts)) return;
+  if (!payload || !Array.isArray(payload.shortcuts) || !Array.isArray(payload.widgets)) return;
 
   isApplyingRemoteData = true;
   shortcuts = payload.shortcuts.map((item, index) => normalizeShortcut(item, index)).filter((item) => item.url);
-  widgets = Array.isArray(payload.widgets) ? payload.widgets : [];
-  if (Array.isArray(payload.searchHistory)) {
-    searchHistoryList = payload.searchHistory.filter((i) => typeof i === "string").slice(0, MAX_HISTORY);
-  }
+  widgets = payload.widgets;
   saveShortcuts();
   saveWidgets();
-  saveSearchHistory();
   isApplyingRemoteData = false;
 
   renderShortcutArea();
   renderWidgets();
-  renderSearchHistory();
 }
 
 async function pushCloudData(statusMessage = "已同步到云端。") {
@@ -509,7 +280,7 @@ function initSync() {
 
   syncEnabled = true;
   elements.syncEnableButton.textContent = "同步已启用";
-  pullCloudData().catch(() => undefined);
+  pullCloudData();
 }
 
 function normalizeUrl(value) {
@@ -573,16 +344,6 @@ function getVisibleShortcuts() {
     selectedCategory === ALL_CATEGORY
       ? shortcuts
       : shortcuts.filter((shortcut) => shortcut.category === selectedCategory);
-
-  if (searchQuery) {
-    const lower = searchQuery.toLowerCase();
-    const filtered = visible.filter((item) =>
-      (item.name || "").toLowerCase().includes(lower) ||
-      (item.url || "").toLowerCase().includes(lower)
-    );
-    return getSortedShortcuts(filtered);
-  }
-
   return getSortedShortcuts(visible);
 }
 
@@ -803,7 +564,6 @@ async function loadWeather() {
   try {
     const position = await getCurrentPosition();
     const { latitude, longitude } = position.coords;
-    weatherCoords = { lat: latitude, lon: longitude };
     const params = new URLSearchParams({
       latitude: latitude.toFixed(4),
       longitude: longitude.toFixed(4),
@@ -827,11 +587,6 @@ async function loadWeather() {
       temp: `${temperature}${tempUnit} · ${info.label}`,
       desc: `湿度 ${humidity}% · 风速 ${wind}${windUnit}`,
     });
-
-    if (weatherCoords) {
-      const location = await reverseGeocode(weatherCoords.lat, weatherCoords.lon);
-      if (location) elements.weatherLocation.textContent = `📍 ${location}`;
-    }
   } catch {
     setWeatherState({
       mark: "云",
@@ -1091,13 +846,6 @@ function renderShortcutArea() {
   renderShortcuts();
 }
 
-function filterShortcutsBySearch(value) {
-  searchQuery = value.trim();
-  elements.searchHistory.hidden = !(!searchQuery && searchHistoryList.length && document.activeElement === elements.searchInput);
-  renderCategories();
-  renderShortcuts({ animate: searchQuery.length > 0 });
-}
-
 function openDialog(id = null) {
   editingId = id;
   const shortcut = shortcuts.find((item) => item.id === id);
@@ -1279,8 +1027,6 @@ function submitSearch(event) {
   }
 
   const engine = searchEngines.find((item) => item.id === elements.engineSelect.value) || searchEngines[0];
-  addSearchHistory(query);
-  renderSearchHistory();
   window.open(`${engine.url}${encodeURIComponent(query)}`, "_self");
 }
 
@@ -1292,68 +1038,6 @@ function exportShortcuts() {
   link.download = "shortcuts.json";
   link.click();
   URL.revokeObjectURL(url);
-}
-
-function initDarkMode() {
-  const saved = localStorage.getItem(DARK_KEY);
-  const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
-  const dark = saved !== null ? saved === "1" : prefersDark;
-  if (dark) document.documentElement.dataset.theme = "dark";
-  updateDarkToggle();
-}
-
-function toggleDarkMode() {
-  const isDark = document.documentElement.dataset.theme === "dark";
-  document.documentElement.dataset.theme = isDark ? "" : "dark";
-  localStorage.setItem(DARK_KEY, document.documentElement.dataset.theme === "dark" ? "1" : "0");
-  updateDarkToggle();
-}
-
-function updateDarkToggle() {
-  const isDark = document.documentElement.dataset.theme === "dark";
-  elements.darkToggleButton.textContent = isDark ? "明" : "暗";
-}
-
-function showContextMenu(event) {
-  const card = event.target.closest(".shortcut-card");
-  if (!card || !card.dataset.shortcutId) return;
-  event.preventDefault();
-  contextMenuTargetId = card.dataset.shortcutId;
-  const shortcut = shortcuts.find((item) => item.id === contextMenuTargetId);
-  if (!shortcut) return;
-  const pinBtn = elements.contextMenu.querySelector('[data-action="pin"]');
-  pinBtn.textContent = shortcut.pinned ? "取消置顶" : "置顶";
-  elements.contextMenu.hidden = false;
-  elements.contextMenu.style.left = `${Math.min(event.clientX, window.innerWidth - 210)}px`;
-  elements.contextMenu.style.top = `${Math.min(event.clientY, window.innerHeight - 210)}px`;
-  window.clearTimeout(contextMenuTimer);
-}
-
-function hideContextMenu() {
-  contextMenuTimer = window.setTimeout(() => {
-    elements.contextMenu.hidden = true;
-    contextMenuTargetId = null;
-  }, 80);
-}
-
-function handleContextMenuAction(action) {
-  const id = contextMenuTargetId;
-  hideContextMenu();
-  if (!id) return;
-  const shortcut = shortcuts.find((item) => item.id === id);
-  if (!shortcut) return;
-  switch (action) {
-    case "open": window.open(shortcut.url, "_blank", "noreferrer"); break;
-    case "edit": openDialog(id); break;
-    case "pin": toggleShortcutPin(id); break;
-    case "delete":
-      if (window.confirm(`确定删除「${shortcut.name}」这个快捷方式吗？`)) {
-        shortcuts = shortcuts.filter((item) => item.id !== id);
-        saveShortcuts();
-        renderShortcutArea();
-      }
-      break;
-  }
 }
 
 function importShortcuts(event) {
@@ -1452,41 +1136,10 @@ elements.cancelWidgetDialogButton.addEventListener("click", closeWidgetDialog);
 elements.widgetForm.addEventListener("submit", saveWidgetFromDialog);
 elements.deleteWidgetButton.addEventListener("click", deleteEditingWidget);
 elements.weatherRefreshButton.addEventListener("click", loadWeather);
-elements.darkToggleButton.addEventListener("click", toggleDarkMode);
-elements.searchInput.addEventListener("focus", () => {
-  if (!searchQuery) {
-    renderSearchHistory();
-    elements.searchHistory.hidden = !searchHistoryList.length;
-  }
-});
-elements.searchInput.addEventListener("blur", () => {
-  window.setTimeout(() => { elements.searchHistory.hidden = true; }, 180);
-});
-elements.searchInput.addEventListener("input", () => filterShortcutsBySearch(elements.searchInput.value));
-
-elements.contextMenu.addEventListener("click", (event) => {
-  const action = event.target.closest("button")?.dataset.action;
-  if (action) handleContextMenuAction(action);
-});
-
-elements.shortcutGrid.addEventListener("contextmenu", showContextMenu);
-document.addEventListener("click", (event) => {
-  if (!elements.contextMenu.contains(event.target) && !elements.contextMenu.hidden) hideContextMenu();
-});
-document.addEventListener("scroll", () => { if (!elements.contextMenu.hidden) hideContextMenu(); });
 
 updateClock();
 setInterval(updateClock, 1000);
 loadWeather();
 renderEngines();
 render();
-initDarkMode();
-renderDailyQuote();
-loadTodayInHistory();
 initSync();
-
-// Mobile tap handler for history card
-const historyCard = document.querySelector(".history-card");
-if (historyCard) {
-  historyCard.addEventListener("click", () => historyCard.classList.toggle("is-tapped"));
-}
