@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS sync_profiles (
+  sync_key TEXT PRIMARY KEY,
+  payload TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

@@ -78,6 +78,13 @@ docker run -d --name launchpad -p 8080:80 -v "$PWD":/usr/share/nginx/html:ro ngi
 
 本项目已包含 `wrangler.jsonc`，使用 Cloudflare Workers Static Assets。推荐直接在 Cloudflare Workers 里连接 GitHub 仓库自动部署。
 
+项目包含 Worker API：
+
+- `GET /api/sync/:syncKey`：按同步码读取快捷方式和小组件。
+- `PUT /api/sync/:syncKey`：按同步码保存快捷方式和小组件。
+
+未配置 D1 数据库时，网页仍可正常打开，但同步面板会提示数据库未配置。
+
 ### GitHub 自动部署
 
 1. 进入 Cloudflare Dashboard。
@@ -93,6 +100,38 @@ Output directory: dist
 ```
 
 `wrangler.jsonc` 会把 `dist/` 作为 Workers Static Assets 发布目录。之后每次推送到 GitHub `main` 分支，Cloudflare 都会自动重新构建并部署。
+
+### 启用多设备同步
+
+1. 在 Cloudflare Dashboard 创建一个 D1 数据库，建议名称：
+
+```txt
+browser-start-page-db
+```
+
+2. 进入数据库详情，复制 `database_id`。
+
+3. 打开 `wrangler.jsonc`，取消 `d1_databases` 注释，并把 `database_id` 替换成你的真实 ID。`binding` 必须保持为 `DB`。
+
+4. 推送到 GitHub，Cloudflare Workers 会自动重新部署。
+
+5. 第一次部署后，运行一次 D1 迁移：
+
+```bash
+npm install
+npm run db:migrate
+```
+
+如果不想在本地运行命令，也可以在 Cloudflare D1 控制台手动执行 `migrations/0001_sync_profiles.sql` 里的 SQL。
+
+同步使用方式：
+
+1. 打开网页。
+2. 在“同步码”输入框输入一个只有你知道的同步码。
+3. 点击“启用同步”。
+4. 其他设备输入同一个同步码并点击“拉取云端”，即可看到同一份快捷方式和小组件。
+
+同步码相当于这份数据的简单密码，请不要使用太短或公开的同步码。
 
 ### 本地手动部署
 
@@ -127,7 +166,9 @@ npm run deploy:vercel
 
 ## 数据说明
 
-快捷方式和小组件保存在浏览器本地 `localStorage` 中。换电脑或换浏览器时，快捷方式可以用页面右上角的“导出”和“导入”迁移数据。
+未启用同步时，快捷方式和小组件保存在浏览器本地 `localStorage` 中。换电脑或换浏览器时，快捷方式可以用页面右上角的“导出”和“导入”迁移数据。
+
+启用同步并配置 D1 后，快捷方式和小组件会同时保存到 Cloudflare D1，同步码相同的设备会读取同一份云端数据。
 
 ## 小组件
 

@@ -1,6 +1,7 @@
 const STORAGE_KEY = "browser-launchpad-shortcuts-v1";
 const ENGINE_KEY = "browser-launchpad-engine-v1";
 const WIDGET_KEY = "browser-launchpad-widgets-v1";
+const SYNC_KEY = "browser-launchpad-sync-key-v1";
 const ALL_CATEGORY = "全部";
 const DEFAULT_CATEGORY = "常用";
 
@@ -92,6 +93,10 @@ const elements = {
   deleteButton: document.querySelector("#deleteShortcutButton"),
   exportButton: document.querySelector("#exportButton"),
   importInput: document.querySelector("#importInput"),
+  syncKeyInput: document.querySelector("#syncKeyInput"),
+  syncEnableButton: document.querySelector("#syncEnableButton"),
+  syncPullButton: document.querySelector("#syncPullButton"),
+  syncStatus: document.querySelector("#syncStatus"),
   addWidgetButton: document.querySelector("#addWidgetButton"),
   widgetGrid: document.querySelector("#widgetGrid"),
   widgetTemplate: document.querySelector("#widgetTemplate"),
@@ -112,6 +117,9 @@ let widgets = loadWidgets();
 let selectedCategory = ALL_CATEGORY;
 let editingId = null;
 let editingWidgetId = null;
+let syncEnabled = false;
+let isApplyingRemoteData = false;
+let syncSaveTimer = null;
 
 function loadShortcuts() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -127,6 +135,7 @@ function loadShortcuts() {
 
 function saveShortcuts() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(shortcuts));
+  scheduleCloudSave();
 }
 
 function loadWidgets() {
@@ -143,6 +152,112 @@ function loadWidgets() {
 
 function saveWidgets() {
   localStorage.setItem(WIDGET_KEY, JSON.stringify(widgets));
+  scheduleCloudSave();
+}
+
+function setSyncStatus(message, tone = "neutral") {
+  elements.syncStatus.textContent = message;
+  elements.syncStatus.dataset.tone = tone;
+}
+
+function getSyncPayload() {
+  return {
+    shortcuts,
+    widgets,
+  };
+}
+
+async function requestSync(method, syncKey, payload = null) {
+  const response = await fetch(`/api/sync/${encodeURIComponent(syncKey)}`, {
+    method,
+    headers: payload ? { "content-type": "application/json" } : undefined,
+    body: payload ? JSON.stringify(payload) : undefined,
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message =
+      data.error === "D1_NOT_CONFIGURED"
+        ? "云端数据库还没绑定 D1。"
+        : data.error || "同步失败";
+    throw new Error(message);
+  }
+  return data;
+}
+
+function applyRemotePayload(payload) {
+  if (!payload || !Array.isArray(payload.shortcuts) || !Array.isArray(payload.widgets)) return;
+
+  isApplyingRemoteData = true;
+  shortcuts = payload.shortcuts;
+  widgets = payload.widgets;
+  saveShortcuts();
+  saveWidgets();
+  isApplyingRemoteData = false;
+
+  renderShortcutArea();
+  renderWidgets();
+}
+
+async function pushCloudData(statusMessage = "已同步到云端。") {
+  const syncKey = localStorage.getItem(SYNC_KEY);
+  if (!syncEnabled || !syncKey || isApplyingRemoteData) return;
+
+  try {
+    await requestSync("PUT", syncKey, getSyncPayload());
+    setSyncStatus(statusMessage, "ok");
+  } catch (error) {
+    setSyncStatus(error.message, "danger");
+  }
+}
+
+function scheduleCloudSave() {
+  if (!syncEnabled || isApplyingRemoteData) return;
+  window.clearTimeout(syncSaveTimer);
+  syncSaveTimer = window.setTimeout(() => {
+    pushCloudData();
+  }, 450);
+}
+
+async function pullCloudData({ createIfMissing = false } = {}) {
+  const syncKey = elements.syncKeyInput.value.trim();
+  if (syncKey.length < 4) {
+    setSyncStatus("同步码至少需要 4 个字符。", "danger");
+    return;
+  }
+
+  localStorage.setItem(SYNC_KEY, syncKey);
+  syncEnabled = true;
+  elements.syncKeyInput.value = syncKey;
+  elements.syncEnableButton.textContent = "同步已启用";
+  setSyncStatus("正在连接云端数据...", "neutral");
+
+  try {
+    const data = await requestSync("GET", syncKey);
+    if (data.exists) {
+      applyRemotePayload(data.payload);
+      setSyncStatus(`已拉取云端数据：${data.updatedAt || "刚刚更新"}`, "ok");
+      return;
+    }
+
+    if (createIfMissing) {
+      await pushCloudData("云端还没有数据，已用本机数据创建。");
+    } else {
+      setSyncStatus("云端还没有数据，可点击启用同步用本机数据创建。", "neutral");
+    }
+  } catch (error) {
+    syncEnabled = false;
+    setSyncStatus(error.message, "danger");
+  }
+}
+
+function initSync() {
+  const savedSyncKey = localStorage.getItem(SYNC_KEY) || "";
+  elements.syncKeyInput.value = savedSyncKey;
+  if (!savedSyncKey) return;
+
+  syncEnabled = true;
+  elements.syncEnableButton.textContent = "同步已启用";
+  pullCloudData();
 }
 
 function normalizeUrl(value) {
@@ -665,6 +780,8 @@ elements.shortcutForm.addEventListener("submit", saveFromDialog);
 elements.deleteButton.addEventListener("click", deleteEditingShortcut);
 elements.exportButton.addEventListener("click", exportShortcuts);
 elements.importInput.addEventListener("change", importShortcuts);
+elements.syncEnableButton.addEventListener("click", () => pullCloudData({ createIfMissing: true }));
+elements.syncPullButton.addEventListener("click", () => pullCloudData());
 elements.addWidgetButton.addEventListener("click", () => openWidgetDialog());
 elements.closeWidgetDialogButton.addEventListener("click", closeWidgetDialog);
 elements.cancelWidgetDialogButton.addEventListener("click", closeWidgetDialog);
@@ -677,3 +794,4 @@ setInterval(updateClock, 1000);
 loadWeather();
 renderEngines();
 render();
+initSync();

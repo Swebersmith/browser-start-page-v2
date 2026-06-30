@@ -102,6 +102,15 @@
       </section>
 
       <section class="toolbar" aria-label="快捷方式工具">
+        <div class="sync-panel" aria-label="多设备同步">
+          <label>
+            <span>同步码</span>
+            <input id="syncKeyInput" type="password" autocomplete="off" maxlength="80" placeholder="输入同一个同步码" />
+          </label>
+          <button type="button" id="syncEnableButton">启用同步</button>
+          <button type="button" id="syncPullButton">拉取云端</button>
+          <p id="syncStatus">未启用同步，本机数据只保存在当前浏览器。</p>
+        </div>
         <div class="tabs" id="categoryTabs"></div>
         <div class="actions">
           <button type="button" id="addShortcutButton">
