@@ -1,0 +1,11 @@
+{
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "deploy:cloudflare": "npm run build && wrangler deploy",
+    "deploy:vercel": "npm run build && vercel --prod"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0",
+    "vercel": "^44.0.0"
+  }
+}

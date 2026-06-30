@@ -1,0 +1,679 @@
+const STORAGE_KEY = "browser-launchpad-shortcuts-v1";
+const ENGINE_KEY = "browser-launchpad-engine-v1";
+const WIDGET_KEY = "browser-launchpad-widgets-v1";
+const ALL_CATEGORY = "全部";
+const DEFAULT_CATEGORY = "常用";
+
+const searchEngines = [
+  { id: "google", name: "Google", mark: "G", url: "https://www.google.com/search?q=" },
+  { id: "bing", name: "Bing", mark: "B", url: "https://www.bing.com/search?q=" },
+  { id: "baidu", name: "百度", mark: "百", url: "https://www.baidu.com/s?wd=" },
+  { id: "duckduckgo", name: "DuckDuckGo", mark: "D", url: "https://duckduckgo.com/?q=" },
+  { id: "github", name: "GitHub", mark: "GH", url: "https://github.com/search?q=" },
+];
+
+const weatherCodeMap = {
+  0: { label: "晴朗", mark: "晴" },
+  1: { label: "大致晴朗", mark: "晴" },
+  2: { label: "局部多云", mark: "云" },
+  3: { label: "阴天", mark: "阴" },
+  45: { label: "有雾", mark: "雾" },
+  48: { label: "雾凇", mark: "雾" },
+  51: { label: "小毛毛雨", mark: "雨" },
+  53: { label: "毛毛雨", mark: "雨" },
+  55: { label: "较强毛毛雨", mark: "雨" },
+  61: { label: "小雨", mark: "雨" },
+  63: { label: "中雨", mark: "雨" },
+  65: { label: "大雨", mark: "雨" },
+  71: { label: "小雪", mark: "雪" },
+  73: { label: "中雪", mark: "雪" },
+  75: { label: "大雪", mark: "雪" },
+  80: { label: "阵雨", mark: "雨" },
+  81: { label: "中等阵雨", mark: "雨" },
+  82: { label: "强阵雨", mark: "雨" },
+  95: { label: "雷雨", mark: "雷" },
+  96: { label: "雷雨伴冰雹", mark: "雷" },
+  99: { label: "强雷雨伴冰雹", mark: "雷" },
+};
+
+function createId() {
+  if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+  return `id-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
+const defaultShortcuts = [
+  { id: createId(), name: "Google", url: "https://www.google.com", category: "常用", color: "#2775d1" },
+  { id: createId(), name: "YouTube", url: "https://www.youtube.com", category: "常用", color: "#e8442e" },
+  { id: createId(), name: "GitHub", url: "https://github.com", category: "开发", color: "#24292f" },
+  { id: createId(), name: "Vercel", url: "https://vercel.com", category: "开发", color: "#111111" },
+  { id: createId(), name: "ChatGPT", url: "https://chat.openai.com", category: "AI", color: "#2e9f6f" },
+  { id: createId(), name: "Cloudflare", url: "https://dash.cloudflare.com", category: "服务器", color: "#f38020" },
+  { id: createId(), name: "宝塔面板", url: "https://www.bt.cn", category: "服务器", color: "#20a53a" },
+  { id: createId(), name: "阿里云", url: "https://www.aliyun.com", category: "服务器", color: "#ff6a00" },
+];
+
+const defaultWidgets = [
+  { id: createId(), title: "今日便签", type: "note", content: "把常用网站和服务器面板整理到这里。", color: "#ffd54a" },
+  { id: createId(), title: "VPS 到期", type: "countdown", content: "2026-12-31", color: "#2775d1" },
+  { id: createId(), title: "小新官网", type: "link", content: "https://www.shinchan-app.jp/", color: "#e8442e" },
+];
+
+const elements = {
+  dateText: document.querySelector("#dateText"),
+  stageTimeText: document.querySelector("#stageTimeText"),
+  stageDateText: document.querySelector("#stageDateText"),
+  weatherIcon: document.querySelector("#weatherIcon"),
+  weatherTemp: document.querySelector("#weatherTemp"),
+  weatherDesc: document.querySelector("#weatherDesc"),
+  weatherRefreshButton: document.querySelector("#weatherRefreshButton"),
+  searchZone: document.querySelector(".search-zone"),
+  searchForm: document.querySelector("#searchForm"),
+  searchInput: document.querySelector("#searchInput"),
+  engineSelectWrap: document.querySelector(".engine-select"),
+  engineSelect: document.querySelector("#engineSelect"),
+  engineSelectButton: document.querySelector("#engineSelectButton"),
+  engineSelectedMark: document.querySelector("#engineSelectedMark"),
+  engineSelectedName: document.querySelector("#engineSelectedName"),
+  engineMenu: document.querySelector("#engineMenu"),
+  engineButtons: document.querySelector("#engineButtons"),
+  categoryTabs: document.querySelector("#categoryTabs"),
+  shortcutGrid: document.querySelector("#shortcutGrid"),
+  template: document.querySelector("#shortcutTemplate"),
+  dialog: document.querySelector("#shortcutDialog"),
+  dialogTitle: document.querySelector("#dialogTitle"),
+  shortcutForm: document.querySelector("#shortcutForm"),
+  nameInput: document.querySelector("#shortcutName"),
+  urlInput: document.querySelector("#shortcutUrl"),
+  categoryInput: document.querySelector("#shortcutCategory"),
+  colorInput: document.querySelector("#shortcutColor"),
+  addButton: document.querySelector("#addShortcutButton"),
+  closeDialogButton: document.querySelector("#closeDialogButton"),
+  cancelDialogButton: document.querySelector("#cancelDialogButton"),
+  deleteButton: document.querySelector("#deleteShortcutButton"),
+  exportButton: document.querySelector("#exportButton"),
+  importInput: document.querySelector("#importInput"),
+  addWidgetButton: document.querySelector("#addWidgetButton"),
+  widgetGrid: document.querySelector("#widgetGrid"),
+  widgetTemplate: document.querySelector("#widgetTemplate"),
+  widgetDialog: document.querySelector("#widgetDialog"),
+  widgetForm: document.querySelector("#widgetForm"),
+  widgetDialogTitle: document.querySelector("#widgetDialogTitle"),
+  widgetTitle: document.querySelector("#widgetTitle"),
+  widgetType: document.querySelector("#widgetType"),
+  widgetContent: document.querySelector("#widgetContent"),
+  widgetColor: document.querySelector("#widgetColor"),
+  closeWidgetDialogButton: document.querySelector("#closeWidgetDialogButton"),
+  cancelWidgetDialogButton: document.querySelector("#cancelWidgetDialogButton"),
+  deleteWidgetButton: document.querySelector("#deleteWidgetButton"),
+};
+
+let shortcuts = loadShortcuts();
+let widgets = loadWidgets();
+let selectedCategory = ALL_CATEGORY;
+let editingId = null;
+let editingWidgetId = null;
+
+function loadShortcuts() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (!raw) return defaultShortcuts;
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length ? parsed : defaultShortcuts;
+  } catch {
+    return defaultShortcuts;
+  }
+}
+
+function saveShortcuts() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(shortcuts));
+}
+
+function loadWidgets() {
+  const raw = localStorage.getItem(WIDGET_KEY);
+  if (!raw) return defaultWidgets;
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) && parsed.length ? parsed : defaultWidgets;
+  } catch {
+    return defaultWidgets;
+  }
+}
+
+function saveWidgets() {
+  localStorage.setItem(WIDGET_KEY, JSON.stringify(widgets));
+}
+
+function normalizeUrl(value) {
+  const trimmed = value.trim();
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return `https://${trimmed}`;
+}
+
+function looksLikeUrl(value) {
+  return /^https?:\/\//i.test(value) || /^[\w-]+(\.[\w-]+)+/.test(value);
+}
+
+function getHostname(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+function getInitials(name) {
+  const clean = name.trim();
+  if (!clean) return "?";
+  const asciiWords = clean.match(/[a-z0-9]+/gi);
+  if (asciiWords?.length) {
+    return asciiWords.slice(0, 2).map((word) => word[0]).join("");
+  }
+  return Array.from(clean).slice(0, 2).join("");
+}
+
+function updateClock() {
+  const now = new Date();
+  const timeText = now.toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const dateText = now.toLocaleDateString("zh-CN", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+  });
+  elements.stageTimeText.textContent = timeText;
+  elements.dateText.textContent = dateText;
+  elements.stageDateText.textContent = dateText;
+}
+
+function setWeatherState({ mark = "?", temp = "等待定位", desc = "允许定位后，小新帮你看天气。" }) {
+  elements.weatherIcon.textContent = mark;
+  elements.weatherTemp.textContent = temp;
+  elements.weatherDesc.textContent = desc;
+}
+
+function getCurrentPosition() {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error("Geolocation is not supported"));
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: false,
+      timeout: 9000,
+      maximumAge: 10 * 60 * 1000,
+    });
+  });
+}
+
+async function loadWeather() {
+  setWeatherState({ mark: "...", temp: "正在定位", desc: "小新正在抬头看天空。" });
+  elements.weatherRefreshButton.disabled = true;
+
+  try {
+    const position = await getCurrentPosition();
+    const { latitude, longitude } = position.coords;
+    const params = new URLSearchParams({
+      latitude: latitude.toFixed(4),
+      longitude: longitude.toFixed(4),
+      current: "temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m",
+      timezone: "auto",
+    });
+    const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
+    if (!response.ok) throw new Error("Weather request failed");
+
+    const data = await response.json();
+    const current = data.current;
+    const info = weatherCodeMap[current?.weather_code] || { label: "天气已更新", mark: "天" };
+    const tempUnit = data.current_units?.temperature_2m || "°C";
+    const windUnit = data.current_units?.wind_speed_10m || "km/h";
+    const temperature = Math.round(current.temperature_2m);
+    const humidity = Math.round(current.relative_humidity_2m);
+    const wind = Math.round(current.wind_speed_10m);
+
+    setWeatherState({
+      mark: info.mark,
+      temp: `${temperature}${tempUnit} · ${info.label}`,
+      desc: `湿度 ${humidity}% · 风速 ${wind}${windUnit}`,
+    });
+  } catch {
+    setWeatherState({
+      mark: "云",
+      temp: "天气暂不可用",
+      desc: "请允许定位，或稍后刷新一次。",
+    });
+  } finally {
+    elements.weatherRefreshButton.disabled = false;
+  }
+}
+
+function renderEngines() {
+  elements.engineSelect.innerHTML = "";
+  elements.engineButtons.innerHTML = "";
+  elements.engineMenu.innerHTML = "";
+
+  const savedEngine = localStorage.getItem(ENGINE_KEY) || searchEngines[0].id;
+  searchEngines.forEach((engine) => {
+    const option = document.createElement("option");
+    option.value = engine.id;
+    option.textContent = engine.name;
+    elements.engineSelect.append(option);
+
+    const menuButton = document.createElement("button");
+    menuButton.type = "button";
+    menuButton.className = `engine-option engine-${engine.id}`;
+    menuButton.dataset.engine = engine.id;
+    menuButton.setAttribute("role", "option");
+    menuButton.innerHTML = `
+      <span class="engine-mark">${engine.mark}</span>
+      <span class="engine-option-copy">
+        <strong>${engine.name}</strong>
+        <small>${engine.url.replace(/^https?:\/\//, "").split("/")[0]}</small>
+      </span>
+    `;
+    menuButton.addEventListener("click", () => {
+      setEngine(engine.id);
+      closeEngineMenu();
+      elements.engineSelectButton.focus();
+    });
+    elements.engineMenu.append(menuButton);
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `engine-tab engine-${engine.id}`;
+    button.dataset.engine = engine.id;
+    button.innerHTML = `<span class="engine-mark">${engine.mark}</span><span>${engine.name}</span>`;
+    button.addEventListener("click", () => setEngine(engine.id));
+    elements.engineButtons.append(button);
+  });
+
+  setEngine(savedEngine);
+}
+
+function closeEngineMenu() {
+  elements.searchZone.classList.remove("is-menu-open");
+  elements.engineSelectWrap.classList.remove("is-open");
+  elements.engineSelectButton.setAttribute("aria-expanded", "false");
+}
+
+function openEngineMenu() {
+  elements.searchZone.classList.add("is-menu-open");
+  elements.engineSelectWrap.classList.add("is-open");
+  elements.engineSelectButton.setAttribute("aria-expanded", "true");
+}
+
+function toggleEngineMenu() {
+  if (elements.engineSelectWrap.classList.contains("is-open")) {
+    closeEngineMenu();
+  } else {
+    openEngineMenu();
+  }
+}
+
+function focusActiveEngineOption() {
+  const activeOption = elements.engineMenu.querySelector(".engine-option.is-active");
+  activeOption?.focus();
+}
+
+function setEngine(engineId) {
+  const fallback = searchEngines[0].id;
+  const nextId = searchEngines.some((engine) => engine.id === engineId) ? engineId : fallback;
+  const currentEngine = searchEngines.find((engine) => engine.id === nextId) || searchEngines[0];
+
+  elements.engineSelect.value = nextId;
+  elements.engineSelectedMark.textContent = currentEngine.mark;
+  elements.engineSelectedName.textContent = currentEngine.name;
+  elements.engineSelectButton.className = `engine-select-button engine-${nextId}`;
+  document.documentElement.dataset.engine = nextId;
+  localStorage.setItem(ENGINE_KEY, nextId);
+
+  elements.engineButtons.querySelectorAll("button").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.engine === nextId);
+  });
+
+  elements.engineMenu.querySelectorAll(".engine-option").forEach((button) => {
+    const isActive = button.dataset.engine === nextId;
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-selected", String(isActive));
+  });
+}
+
+function renderCategories() {
+  const categories = [ALL_CATEGORY, ...new Set(shortcuts.map((item) => item.category).filter(Boolean))];
+  if (!categories.includes(selectedCategory)) selectedCategory = ALL_CATEGORY;
+
+  elements.categoryTabs.innerHTML = "";
+  categories.forEach((category) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.category = category;
+    button.textContent = category;
+    button.classList.toggle("is-active", category === selectedCategory);
+    button.addEventListener("click", () => {
+      setCategory(category);
+    });
+    elements.categoryTabs.append(button);
+  });
+}
+
+function updateCategoryTabs() {
+  elements.categoryTabs.querySelectorAll("button").forEach((button) => {
+    button.classList.toggle("is-active", button.dataset.category === selectedCategory);
+  });
+}
+
+function setCategory(category) {
+  if (selectedCategory === category) return;
+  selectedCategory = category;
+  updateCategoryTabs();
+  renderShortcuts({ animate: true });
+}
+
+function renderShortcuts({ animate = false } = {}) {
+  const visibleShortcuts =
+    selectedCategory === ALL_CATEGORY
+      ? shortcuts
+      : shortcuts.filter((shortcut) => shortcut.category === selectedCategory);
+
+  elements.shortcutGrid.classList.toggle("is-switching", animate);
+  elements.shortcutGrid.innerHTML = "";
+  visibleShortcuts.forEach((shortcut, index) => {
+    const node = elements.template.content.firstElementChild.cloneNode(true);
+    const link = node.querySelector(".shortcut-link");
+    const icon = node.querySelector(".shortcut-icon");
+    const title = node.querySelector("strong");
+    const host = node.querySelector("small");
+    const editButton = node.querySelector(".edit-shortcut");
+
+    link.href = shortcut.url;
+    node.classList.toggle("is-filtered-in", animate);
+    node.style.animationDelay = animate ? `${Math.min(index * 0.025, 0.16)}s` : "";
+    icon.textContent = getInitials(shortcut.name);
+    icon.style.background = shortcut.color;
+    title.textContent = shortcut.name;
+    host.textContent = getHostname(shortcut.url);
+    editButton.addEventListener("click", () => openDialog(shortcut.id));
+
+    elements.shortcutGrid.append(node);
+  });
+
+  if (animate) {
+    window.setTimeout(() => {
+      elements.shortcutGrid.classList.remove("is-switching");
+    }, 280);
+  }
+}
+
+function render() {
+  renderCategories();
+  renderShortcuts();
+  renderWidgets();
+}
+
+function renderShortcutArea() {
+  renderCategories();
+  renderShortcuts();
+}
+
+function openDialog(id = null) {
+  editingId = id;
+  const shortcut = shortcuts.find((item) => item.id === id);
+
+  elements.dialogTitle.textContent = shortcut ? "编辑快捷方式" : "添加快捷方式";
+  elements.nameInput.value = shortcut?.name || "";
+  elements.urlInput.value = shortcut?.url || "";
+  elements.categoryInput.value = shortcut?.category || (selectedCategory === ALL_CATEGORY ? "" : selectedCategory);
+  elements.colorInput.value = shortcut?.color || "#e8442e";
+  elements.deleteButton.hidden = !shortcut;
+  elements.dialog.showModal();
+  elements.nameInput.focus();
+}
+
+function closeDialog() {
+  elements.dialog.close();
+  editingId = null;
+  elements.shortcutForm.reset();
+}
+
+function saveFromDialog(event) {
+  event.preventDefault();
+  const data = {
+    name: elements.nameInput.value.trim(),
+    url: normalizeUrl(elements.urlInput.value),
+    category: elements.categoryInput.value.trim() || DEFAULT_CATEGORY,
+    color: elements.colorInput.value,
+  };
+
+  if (editingId) {
+    shortcuts = shortcuts.map((shortcut) => (shortcut.id === editingId ? { ...shortcut, ...data } : shortcut));
+  } else {
+    shortcuts = [{ id: createId(), ...data }, ...shortcuts];
+  }
+
+  saveShortcuts();
+  closeDialog();
+  renderShortcutArea();
+}
+
+function deleteEditingShortcut() {
+  if (!editingId) return;
+  const shortcut = shortcuts.find((item) => item.id === editingId);
+  const message = shortcut ? `确定删除「${shortcut.name}」这个快捷方式吗？` : "确定删除这个快捷方式吗？";
+  if (!window.confirm(message)) return;
+  shortcuts = shortcuts.filter((shortcut) => shortcut.id !== editingId);
+  saveShortcuts();
+  closeDialog();
+  renderShortcutArea();
+}
+
+function getWidgetTypeLabel(type) {
+  const labels = {
+    note: "便签",
+    countdown: "倒计时",
+    link: "链接",
+  };
+  return labels[type] || "组件";
+}
+
+function formatWidgetContent(widget) {
+  if (widget.type === "countdown") {
+    const target = new Date(`${widget.content}T00:00:00`);
+    if (Number.isNaN(target.getTime())) return "日期格式示例：2026-12-31";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diff = Math.ceil((target - today) / 86400000);
+    if (diff > 0) return `还有 ${diff} 天`;
+    if (diff === 0) return "就是今天";
+    return `已过去 ${Math.abs(diff)} 天`;
+  }
+
+  if (widget.type === "link") {
+    return getHostname(normalizeUrl(widget.content));
+  }
+
+  return widget.content;
+}
+
+function renderWidgets() {
+  elements.widgetGrid.innerHTML = "";
+  widgets.forEach((widget, index) => {
+    const node = elements.widgetTemplate.content.firstElementChild.cloneNode(true);
+    const ribbon = node.querySelector(".widget-ribbon");
+    const type = node.querySelector(".widget-type");
+    const title = node.querySelector("h3");
+    const content = node.querySelector(".widget-content");
+    const editButton = node.querySelector(".edit-widget");
+
+    node.style.animationDelay = `${Math.min(index * 0.05, 0.3)}s`;
+    ribbon.style.background = widget.color;
+    type.textContent = getWidgetTypeLabel(widget.type);
+    title.textContent = widget.title;
+    content.textContent = formatWidgetContent(widget);
+    editButton.addEventListener("click", () => openWidgetDialog(widget.id));
+
+    if (widget.type === "link") {
+      node.addEventListener("dblclick", () => {
+        window.open(normalizeUrl(widget.content), "_blank", "noreferrer");
+      });
+    }
+
+    elements.widgetGrid.append(node);
+  });
+}
+
+function openWidgetDialog(id = null) {
+  editingWidgetId = id;
+  const widget = widgets.find((item) => item.id === id);
+
+  elements.widgetDialogTitle.textContent = widget ? "编辑小组件" : "添加小组件";
+  elements.widgetTitle.value = widget?.title || "";
+  elements.widgetType.value = widget?.type || "note";
+  elements.widgetContent.value = widget?.content || "";
+  elements.widgetColor.value = widget?.color || "#2775d1";
+  elements.deleteWidgetButton.hidden = !widget;
+  elements.widgetDialog.showModal();
+  elements.widgetTitle.focus();
+}
+
+function closeWidgetDialog() {
+  elements.widgetDialog.close();
+  editingWidgetId = null;
+  elements.widgetForm.reset();
+}
+
+function saveWidgetFromDialog(event) {
+  event.preventDefault();
+  const data = {
+    title: elements.widgetTitle.value.trim(),
+    type: elements.widgetType.value,
+    content: elements.widgetContent.value.trim(),
+    color: elements.widgetColor.value,
+  };
+
+  if (editingWidgetId) {
+    widgets = widgets.map((widget) => (widget.id === editingWidgetId ? { ...widget, ...data } : widget));
+  } else {
+    widgets = [{ id: createId(), ...data }, ...widgets];
+  }
+
+  saveWidgets();
+  closeWidgetDialog();
+  renderWidgets();
+}
+
+function deleteEditingWidget() {
+  if (!editingWidgetId) return;
+  const widget = widgets.find((item) => item.id === editingWidgetId);
+  const message = widget ? `确定删除「${widget.title}」这个小组件吗？` : "确定删除这个小组件吗？";
+  if (!window.confirm(message)) return;
+  widgets = widgets.filter((widgetItem) => widgetItem.id !== editingWidgetId);
+  saveWidgets();
+  closeWidgetDialog();
+  renderWidgets();
+}
+
+function submitSearch(event) {
+  event.preventDefault();
+  const query = elements.searchInput.value.trim();
+  if (!query) return;
+
+  if (looksLikeUrl(query)) {
+    window.open(normalizeUrl(query), "_self");
+    return;
+  }
+
+  const engine = searchEngines.find((item) => item.id === elements.engineSelect.value) || searchEngines[0];
+  window.open(`${engine.url}${encodeURIComponent(query)}`, "_self");
+}
+
+function exportShortcuts() {
+  const blob = new Blob([JSON.stringify(shortcuts, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "shortcuts.json";
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function importShortcuts(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.addEventListener("load", () => {
+    try {
+      const parsed = JSON.parse(String(reader.result));
+      if (!Array.isArray(parsed)) throw new Error("Invalid shortcuts file");
+      shortcuts = parsed
+        .filter((item) => item.name && item.url)
+        .map((item) => ({
+          id: item.id || createId(),
+          name: String(item.name).slice(0, 24),
+          url: normalizeUrl(String(item.url)),
+          category: String(item.category || DEFAULT_CATEGORY).slice(0, 16),
+          color: /^#[0-9a-f]{6}$/i.test(item.color) ? item.color : "#e8442e",
+        }));
+      saveShortcuts();
+      selectedCategory = ALL_CATEGORY;
+      renderShortcutArea();
+    } catch {
+      alert("导入失败，请选择正确的 JSON 文件。");
+    } finally {
+      elements.importInput.value = "";
+    }
+  });
+  reader.readAsText(file);
+}
+
+elements.searchForm.addEventListener("submit", submitSearch);
+elements.engineSelect.addEventListener("change", (event) => setEngine(event.target.value));
+elements.engineSelectButton.addEventListener("click", toggleEngineMenu);
+elements.engineSelectButton.addEventListener("keydown", (event) => {
+  if (event.key !== "ArrowDown") return;
+  event.preventDefault();
+  openEngineMenu();
+  focusActiveEngineOption();
+});
+elements.engineMenu.addEventListener("keydown", (event) => {
+  const options = Array.from(elements.engineMenu.querySelectorAll(".engine-option"));
+  const currentIndex = options.indexOf(document.activeElement);
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeEngineMenu();
+    elements.engineSelectButton.focus();
+  }
+  if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+    event.preventDefault();
+    const step = event.key === "ArrowDown" ? 1 : -1;
+    const nextIndex = currentIndex < 0 ? 0 : (currentIndex + step + options.length) % options.length;
+    options[nextIndex]?.focus();
+  }
+});
+document.addEventListener("click", (event) => {
+  if (!elements.engineSelectWrap.contains(event.target)) closeEngineMenu();
+});
+elements.addButton.addEventListener("click", () => openDialog());
+elements.closeDialogButton.addEventListener("click", closeDialog);
+elements.cancelDialogButton.addEventListener("click", closeDialog);
+elements.shortcutForm.addEventListener("submit", saveFromDialog);
+elements.deleteButton.addEventListener("click", deleteEditingShortcut);
+elements.exportButton.addEventListener("click", exportShortcuts);
+elements.importInput.addEventListener("change", importShortcuts);
+elements.addWidgetButton.addEventListener("click", () => openWidgetDialog());
+elements.closeWidgetDialogButton.addEventListener("click", closeWidgetDialog);
+elements.cancelWidgetDialogButton.addEventListener("click", closeWidgetDialog);
+elements.widgetForm.addEventListener("submit", saveWidgetFromDialog);
+elements.deleteWidgetButton.addEventListener("click", deleteEditingWidget);
+elements.weatherRefreshButton.addEventListener("click", loadWeather);
+
+updateClock();
+setInterval(updateClock, 1000);
+loadWeather();
+renderEngines();
+render();

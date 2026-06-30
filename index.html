@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>小新风快捷首页</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="paper-grain" aria-hidden="true"></div>
+    <div class="doodle-layer" aria-hidden="true">
+      <span class="doodle doodle-star">星星</span>
+      <span class="doodle doodle-swirl"></span>
+      <span class="doodle doodle-pencil"></span>
+      <span class="doodle doodle-badge">Action</span>
+    </div>
+
+    <main class="shell">
+      <section class="topbar hero-strip" aria-label="今日状态">
+        <img class="hero-strip-main" src="./assets/custom/shin-surprise.jpg" alt="蜡笔小新惊喜表情" />
+        <div class="hero-strip-copy">
+          <p class="eyebrow" id="dateText">今天</p>
+          <strong>今天也要认真摸鱼</strong>
+          <span>搜索、快捷方式和天气都准备好了。</span>
+        </div>
+        <img class="hero-strip-side" src="./assets/custom/kasukabe-sky.jpg" alt="春日部防卫队在草地上" />
+      </section>
+
+      <section class="character-stage weather-stage" aria-label="天气和时间">
+        <div class="stage-copy weather-time-card">
+          <p>Today</p>
+          <h2 id="stageTimeText">--:--</h2>
+          <span id="stageDateText">正在准备今天</span>
+        </div>
+        <div class="weather-panel">
+          <div class="weather-icon" id="weatherIcon" aria-hidden="true">?</div>
+          <div>
+            <p class="weather-kicker">当前天气</p>
+            <strong id="weatherTemp">定位后显示</strong>
+            <span id="weatherDesc">允许定位后，小新帮你看天气。</span>
+          </div>
+          <button id="weatherRefreshButton" class="weather-refresh" type="button">刷新</button>
+        </div>
+        <div class="weather-character-art" aria-hidden="true">
+          <img class="weather-scene" src="./assets/custom/kasukabe-evening.jpg" alt="" />
+        </div>
+      </section>
+
+      <section class="search-zone" aria-label="主搜索">
+        <form id="searchForm" class="search-form">
+          <div class="engine-select">
+            <span id="engineSelectLabel" class="sr-only">选择搜索引擎</span>
+            <select id="engineSelect" aria-hidden="true" tabindex="-1"></select>
+            <button
+              id="engineSelectButton"
+              class="engine-select-button"
+              type="button"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-labelledby="engineSelectLabel engineSelectedName"
+            >
+              <span id="engineSelectedMark" class="engine-mark">G</span>
+              <span class="engine-selected-copy">
+                <strong id="engineSelectedName">Google</strong>
+                <small>搜索引擎</small>
+              </span>
+              <span class="engine-chevron" aria-hidden="true"></span>
+            </button>
+            <div id="engineMenu" class="engine-menu" role="listbox" aria-labelledby="engineSelectLabel"></div>
+          </div>
+          <label class="search-input-wrap">
+            <span class="sr-only">搜索内容或网址</span>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7"></circle>
+              <path d="m20 20-3.5-3.5"></path>
+            </svg>
+            <input
+              id="searchInput"
+              type="text"
+              autocomplete="off"
+              placeholder="搜索，或者输入网址直接打开"
+              autofocus
+            />
+          </label>
+          <button class="search-button" type="submit">出发</button>
+        </form>
+        <div class="quick-engines" id="engineButtons" aria-label="搜索引擎快捷切换"></div>
+      </section>
+
+      <section class="widget-board" aria-label="自定义小组件">
+        <div class="section-head">
+          <div>
+            <p>Widgets</p>
+            <h2>我的小组件</h2>
+          </div>
+          <button type="button" id="addWidgetButton">
+            <span>+</span>
+            添加组件
+          </button>
+        </div>
+        <div class="widget-grid" id="widgetGrid"></div>
+      </section>
+
+      <section class="toolbar" aria-label="快捷方式工具">
+        <div class="tabs" id="categoryTabs"></div>
+        <div class="actions">
+          <button type="button" id="addShortcutButton">
+            <span>+</span>
+            添加
+          </button>
+          <button type="button" id="exportButton">导出</button>
+          <label class="import-button">
+            导入
+            <input id="importInput" type="file" accept="application/json" />
+          </label>
+        </div>
+      </section>
+
+      <section class="shortcut-grid" id="shortcutGrid" aria-label="快捷方式"></section>
+    </main>
+
+    <dialog id="shortcutDialog">
+      <form method="dialog" class="dialog-card" id="shortcutForm">
+        <div class="dialog-head">
+          <h2 id="dialogTitle">添加快捷方式</h2>
+          <button class="icon-button" type="button" id="closeDialogButton" aria-label="关闭">×</button>
+        </div>
+        <label>
+          名称
+          <input id="shortcutName" type="text" required maxlength="24" placeholder="例如：GitHub" />
+        </label>
+        <label>
+          网址
+          <input id="shortcutUrl" type="url" required placeholder="https://example.com" />
+        </label>
+        <label>
+          分组
+          <input id="shortcutCategory" type="text" required maxlength="16" placeholder="例如：常用" />
+        </label>
+        <label>
+          颜色
+          <input id="shortcutColor" type="color" value="#e8442e" />
+        </label>
+        <div class="dialog-actions">
+          <button type="button" id="deleteShortcutButton" class="danger-button">删除</button>
+          <span></span>
+          <button type="button" id="cancelDialogButton">取消</button>
+          <button type="submit" class="primary-button">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="widgetDialog">
+      <form method="dialog" class="dialog-card" id="widgetForm">
+        <div class="dialog-head">
+          <h2 id="widgetDialogTitle">添加小组件</h2>
+          <button class="icon-button" type="button" id="closeWidgetDialogButton" aria-label="关闭">×</button>
+        </div>
+        <label>
+          标题
+          <input id="widgetTitle" type="text" required maxlength="24" placeholder="例如：今日计划" />
+        </label>
+        <label>
+          类型
+          <select id="widgetType">
+            <option value="note">便签</option>
+            <option value="countdown">倒计时</option>
+            <option value="link">链接</option>
+          </select>
+        </label>
+        <label>
+          内容
+          <textarea id="widgetContent" required maxlength="160" placeholder="便签文字、日期 2026-12-31，或链接地址"></textarea>
+        </label>
+        <label>
+          颜色
+          <input id="widgetColor" type="color" value="#2775d1" />
+        </label>
+        <div class="dialog-actions">
+          <button type="button" id="deleteWidgetButton" class="danger-button">删除</button>
+          <span></span>
+          <button type="button" id="cancelWidgetDialogButton">取消</button>
+          <button type="submit" class="primary-button">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <template id="shortcutTemplate">
+      <article class="shortcut-card">
+        <a class="shortcut-link" target="_blank" rel="noreferrer">
+          <span class="shortcut-icon"></span>
+          <span class="shortcut-meta">
+            <strong></strong>
+            <small></small>
+          </span>
+        </a>
+        <button class="edit-shortcut" type="button" aria-label="编辑快捷方式">编辑</button>
+      </article>
+    </template>
+
+    <template id="widgetTemplate">
+      <article class="widget-card">
+        <div class="widget-ribbon"></div>
+        <div>
+          <p class="widget-type"></p>
+          <h3></h3>
+        </div>
+        <p class="widget-content"></p>
+        <button class="edit-widget" type="button" aria-label="编辑小组件">编辑</button>
+      </article>
+    </template>
+
+    <script src="./script.js"></script>
+  </body>
+</html>
