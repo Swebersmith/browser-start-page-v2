@@ -91,6 +91,8 @@ const elements = {
   closeDialogButton: document.querySelector("#closeDialogButton"),
   cancelDialogButton: document.querySelector("#cancelDialogButton"),
   deleteButton: document.querySelector("#deleteShortcutButton"),
+  categorySuggestions: document.querySelector("#categorySuggestions"),
+  autoColorButton: document.querySelector("#autoColorButton"),
   exportButton: document.querySelector("#exportButton"),
   importInput: document.querySelector("#importInput"),
   syncKeyInput: document.querySelector("#syncKeyInput"),
@@ -278,6 +280,51 @@ function getHostname(url) {
   }
 }
 
+function getNameFromUrl(value) {
+  try {
+    const host = new URL(normalizeUrl(value)).hostname.replace(/^www\./, "");
+    const name = host.split(".")[0] || host;
+    return name
+      .split(/[-_]/)
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" ")
+      .slice(0, 24);
+  } catch {
+    return "";
+  }
+}
+
+function getColorFromUrl(value) {
+  const host = getHostname(normalizeUrl(value));
+  const palette = ["#e8442e", "#2775d1", "#2e9f6f", "#f38020", "#7c4dff", "#d81b60", "#008373"];
+  const total = Array.from(host).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  return palette[total % palette.length];
+}
+
+function updateCategorySuggestions() {
+  const categories = [...new Set(shortcuts.map((item) => item.category).filter(Boolean))];
+  elements.categorySuggestions.innerHTML = "";
+  categories.forEach((category) => {
+    const option = document.createElement("option");
+    option.value = category;
+    elements.categorySuggestions.append(option);
+  });
+}
+
+function autofillShortcutFromUrl({ forceColor = false } = {}) {
+  const url = elements.urlInput.value.trim();
+  if (!url) return;
+
+  if (!elements.nameInput.value.trim()) {
+    elements.nameInput.value = getNameFromUrl(url);
+  }
+
+  if (forceColor || elements.colorInput.value === "#e8442e") {
+    elements.colorInput.value = getColorFromUrl(url);
+  }
+}
+
 function getInitials(name) {
   const clean = name.trim();
   if (!clean) return "?";
@@ -462,6 +509,7 @@ function renderCategories() {
   const categories = [ALL_CATEGORY, ...new Set(shortcuts.map((item) => item.category).filter(Boolean))];
   if (!categories.includes(selectedCategory)) selectedCategory = ALL_CATEGORY;
 
+  updateCategorySuggestions();
   elements.categoryTabs.innerHTML = "";
   categories.forEach((category) => {
     const button = document.createElement("button");
@@ -538,6 +586,7 @@ function renderShortcutArea() {
 function openDialog(id = null) {
   editingId = id;
   const shortcut = shortcuts.find((item) => item.id === id);
+  updateCategorySuggestions();
 
   elements.dialogTitle.textContent = shortcut ? "编辑快捷方式" : "添加快捷方式";
   elements.nameInput.value = shortcut?.name || "";
@@ -546,7 +595,7 @@ function openDialog(id = null) {
   elements.colorInput.value = shortcut?.color || "#e8442e";
   elements.deleteButton.hidden = !shortcut;
   elements.dialog.showModal();
-  elements.nameInput.focus();
+  elements.urlInput.focus();
 }
 
 function closeDialog() {
@@ -557,8 +606,9 @@ function closeDialog() {
 
 function saveFromDialog(event) {
   event.preventDefault();
+  autofillShortcutFromUrl();
   const data = {
-    name: elements.nameInput.value.trim(),
+    name: elements.nameInput.value.trim() || getNameFromUrl(elements.urlInput.value) || "新快捷方式",
     url: normalizeUrl(elements.urlInput.value),
     category: elements.categoryInput.value.trim() || DEFAULT_CATEGORY,
     color: elements.colorInput.value,
@@ -571,6 +621,7 @@ function saveFromDialog(event) {
   }
 
   saveShortcuts();
+  selectedCategory = data.category;
   closeDialog();
   renderShortcutArea();
 }
@@ -776,6 +827,12 @@ document.addEventListener("click", (event) => {
 elements.addButton.addEventListener("click", () => openDialog());
 elements.closeDialogButton.addEventListener("click", closeDialog);
 elements.cancelDialogButton.addEventListener("click", closeDialog);
+elements.urlInput.addEventListener("blur", () => autofillShortcutFromUrl());
+elements.urlInput.addEventListener("input", () => {
+  const value = elements.urlInput.value.trim();
+  if (!elements.nameInput.value.trim() && looksLikeUrl(value)) autofillShortcutFromUrl();
+});
+elements.autoColorButton.addEventListener("click", () => autofillShortcutFromUrl({ forceColor: true }));
 elements.shortcutForm.addEventListener("submit", saveFromDialog);
 elements.deleteButton.addEventListener("click", deleteEditingShortcut);
 elements.exportButton.addEventListener("click", exportShortcuts);
