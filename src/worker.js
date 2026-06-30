@@ -106,10 +106,10 @@ export default {
       const syncKey = getSyncKey(url.pathname);
 
       if (syncKey) {
-        return handleSync(request, env, syncKey);
+        return await handleSync(request, env, syncKey);
       }
 
-      return env.ASSETS.fetch(request);
+      return await env.ASSETS.fetch(request);
     } catch (error) {
       return json(
         {
