@@ -137,7 +137,11 @@
         </div>
         <label>
           网址
-          <input id="shortcutUrl" type="text" inputmode="url" required placeholder="example.com 或 https://example.com" />
+          <span class="url-line">
+            <input id="shortcutUrl" type="text" inputmode="url" required placeholder="example.com 或 https://example.com" />
+            <button id="metadataButton" type="button">识别</button>
+          </span>
+          <small id="shortcutMetaStatus" class="shortcut-meta-status" aria-live="polite"></small>
         </label>
         <label>
           名称
@@ -201,6 +205,7 @@
 
     <template id="shortcutTemplate">
       <article class="shortcut-card">
+        <button class="pin-shortcut" type="button" aria-label="置顶快捷方式"></button>
         <a class="shortcut-link" target="_blank" rel="noreferrer">
           <span class="shortcut-icon"></span>
           <span class="shortcut-meta">

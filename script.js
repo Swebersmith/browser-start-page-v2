@@ -85,6 +85,8 @@ const elements = {
   shortcutForm: document.querySelector("#shortcutForm"),
   nameInput: document.querySelector("#shortcutName"),
   urlInput: document.querySelector("#shortcutUrl"),
+  metadataButton: document.querySelector("#metadataButton"),
+  shortcutMetaStatus: document.querySelector("#shortcutMetaStatus"),
   categoryInput: document.querySelector("#shortcutCategory"),
   colorInput: document.querySelector("#shortcutColor"),
   addButton: document.querySelector("#addShortcutButton"),
@@ -122,6 +124,23 @@ let editingWidgetId = null;
 let syncEnabled = false;
 let isApplyingRemoteData = false;
 let syncSaveTimer = null;
+let draggedShortcutId = null;
+let metadataLookupTimer = null;
+let metadataLookupController = null;
+let currentShortcutIconUrl = "";
+
+function normalizeShortcut(item, index = 0) {
+  return {
+    id: item.id || createId(),
+    name: String(item.name || "").slice(0, 24),
+    url: normalizeUrl(String(item.url || "")),
+    category: String(item.category || DEFAULT_CATEGORY).slice(0, 16),
+    color: /^#[0-9a-f]{6}$/i.test(item.color) ? item.color : getColorFromUrl(String(item.url || "")),
+    pinned: Boolean(item.pinned),
+    icon: typeof item.icon === "string" ? item.icon : "",
+    order: Number.isFinite(Number(item.order)) ? Number(item.order) : index,
+  };
+}
 
 function loadShortcuts() {
   const raw = localStorage.getItem(STORAGE_KEY);
@@ -129,7 +148,9 @@ function loadShortcuts() {
 
   try {
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length ? parsed : defaultShortcuts;
+    return Array.isArray(parsed) && parsed.length
+      ? parsed.map((item, index) => normalizeShortcut(item, index)).filter((item) => item.url)
+      : defaultShortcuts;
   } catch {
     return defaultShortcuts;
   }
@@ -190,7 +211,7 @@ function applyRemotePayload(payload) {
   if (!payload || !Array.isArray(payload.shortcuts) || !Array.isArray(payload.widgets)) return;
 
   isApplyingRemoteData = true;
-  shortcuts = payload.shortcuts;
+  shortcuts = payload.shortcuts.map((item, index) => normalizeShortcut(item, index)).filter((item) => item.url);
   widgets = payload.widgets;
   saveShortcuts();
   saveWidgets();
@@ -300,6 +321,169 @@ function getColorFromUrl(value) {
   const palette = ["#e8442e", "#2775d1", "#2e9f6f", "#f38020", "#7c4dff", "#d81b60", "#008373"];
   const total = Array.from(host).reduce((sum, char) => sum + char.charCodeAt(0), 0);
   return palette[total % palette.length];
+}
+
+function isHexColor(value) {
+  return /^#[0-9a-f]{6}$/i.test(value);
+}
+
+function setShortcutMetaStatus(message = "", tone = "neutral") {
+  elements.shortcutMetaStatus.textContent = message;
+  elements.shortcutMetaStatus.dataset.tone = tone;
+}
+
+function getSortedShortcuts(list) {
+  return [...list].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return (Number(a.order) || 0) - (Number(b.order) || 0);
+  });
+}
+
+function getVisibleShortcuts() {
+  const visible =
+    selectedCategory === ALL_CATEGORY
+      ? shortcuts
+      : shortcuts.filter((shortcut) => shortcut.category === selectedCategory);
+  return getSortedShortcuts(visible);
+}
+
+function getTopShortcutOrder() {
+  const orders = shortcuts.map((shortcut) => Number(shortcut.order)).filter(Number.isFinite);
+  return orders.length ? Math.min(...orders) - 1 : 0;
+}
+
+async function fetchShortcutMetadata(value, { silent = false } = {}) {
+  const trimmed = value.trim();
+  if (!trimmed || !looksLikeUrl(trimmed)) return null;
+
+  metadataLookupController?.abort();
+  metadataLookupController = new AbortController();
+  const timeout = window.setTimeout(() => metadataLookupController.abort(), 9000);
+
+  if (!silent) {
+    setShortcutMetaStatus("正在识别网站信息...", "neutral");
+    elements.metadataButton.disabled = true;
+  }
+
+  try {
+    const url = normalizeUrl(trimmed);
+    const response = await fetch(`/api/metadata?url=${encodeURIComponent(url)}`, {
+      signal: metadataLookupController.signal,
+    });
+    const metadata = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(metadata.error || "METADATA_FAILED");
+    return metadata;
+  } catch (error) {
+    if (error.name !== "AbortError" && !silent) {
+      setShortcutMetaStatus("暂时没识别到网站信息，已保留手动填写。", "danger");
+    }
+    return null;
+  } finally {
+    window.clearTimeout(timeout);
+    if (!silent) elements.metadataButton.disabled = false;
+  }
+}
+
+function applyShortcutMetadata(metadata, { force = false } = {}) {
+  if (!metadata) return false;
+  let applied = false;
+
+  if (metadata.title && (force || !elements.nameInput.value.trim())) {
+    elements.nameInput.value = String(metadata.title).slice(0, 24);
+    applied = true;
+  }
+
+  if (isHexColor(metadata.color) && (force || elements.colorInput.value === "#e8442e")) {
+    elements.colorInput.value = metadata.color;
+    applied = true;
+  }
+
+  if (metadata.icon) {
+    currentShortcutIconUrl = metadata.icon;
+    applied = true;
+  }
+
+  return applied;
+}
+
+async function lookupShortcutMetadata({ force = false, silent = false } = {}) {
+  const value = elements.urlInput.value.trim();
+  if (!value || !looksLikeUrl(value)) return;
+
+  const metadata = await fetchShortcutMetadata(value, { silent });
+  const applied = applyShortcutMetadata(metadata, { force });
+  if (!silent) {
+    setShortcutMetaStatus(applied ? "已识别网站标题、图标和配色。" : "没有找到更多信息，可继续手动填写。", applied ? "ok" : "neutral");
+  }
+}
+
+function scheduleShortcutMetadataLookup() {
+  window.clearTimeout(metadataLookupTimer);
+  metadataLookupTimer = window.setTimeout(() => {
+    lookupShortcutMetadata({ silent: true });
+  }, 650);
+}
+
+function getShortcutIconUrls(value) {
+  try {
+    const url = new URL(normalizeUrl(value));
+    const host = url.hostname;
+    const cleanHost = host.replace(/^www\./, "");
+    const cachedHosts = [...new Set([host, cleanHost])];
+
+    return [
+      `${url.origin}/favicon.ico`,
+      ...cachedHosts.map((domain) => `https://icons.duckduckgo.com/ip3/${domain}.ico`),
+    ];
+  } catch {
+    return [];
+  }
+}
+
+function applyShortcutIcon(icon, shortcut) {
+  const preferredIcon = typeof shortcut.icon === "string" ? shortcut.icon.trim() : "";
+  const candidates = [...new Set([preferredIcon, ...getShortcutIconUrls(shortcut.url)].filter(Boolean))];
+  let candidateIndex = 0;
+
+  icon.classList.remove("has-favicon");
+  icon.innerHTML = "";
+  const fallback = document.createElement("span");
+  fallback.className = "shortcut-fallback";
+  fallback.textContent = getInitials(shortcut.name);
+  icon.append(fallback);
+  icon.style.background = shortcut.color;
+
+  if (!candidates.length) return;
+
+  const image = document.createElement("img");
+  image.alt = "";
+  image.decoding = "async";
+  image.loading = "eager";
+  image.referrerPolicy = "no-referrer";
+  image.style.visibility = "hidden";
+  icon.append(image);
+
+  const tryNextIcon = () => {
+    if (candidateIndex >= candidates.length) {
+      image.remove();
+      return;
+    }
+    image.src = candidates[candidateIndex];
+    candidateIndex += 1;
+  };
+
+  image.onload = () => {
+    if (!image.naturalWidth || !image.naturalHeight) {
+      tryNextIcon();
+      return;
+    }
+
+    icon.classList.add("has-favicon");
+    fallback.hidden = true;
+    image.style.visibility = "";
+  };
+  image.onerror = tryNextIcon;
+  tryNextIcon();
 }
 
 function updateCategorySuggestions() {
@@ -537,11 +721,53 @@ function setCategory(category) {
   renderShortcuts({ animate: true });
 }
 
+function updateVisibleShortcutOrder(orderedShortcuts) {
+  orderedShortcuts.forEach((shortcut, index) => {
+    shortcut.order = index;
+  });
+}
+
+function moveShortcutInView(draggedId, targetId = null) {
+  if (!draggedId || draggedId === targetId) return;
+
+  const ordered = getVisibleShortcuts();
+  const fromIndex = ordered.findIndex((shortcut) => shortcut.id === draggedId);
+  if (fromIndex < 0) return;
+
+  const [dragged] = ordered.splice(fromIndex, 1);
+  const targetIndex = targetId ? ordered.findIndex((shortcut) => shortcut.id === targetId) : -1;
+  if (targetIndex < 0) {
+    ordered.push(dragged);
+  } else {
+    const target = ordered[targetIndex];
+    dragged.pinned = Boolean(target.pinned);
+    ordered.splice(targetIndex, 0, dragged);
+  }
+
+  updateVisibleShortcutOrder(ordered);
+  saveShortcuts();
+  renderShortcutArea();
+}
+
+function toggleShortcutPin(id) {
+  const shortcut = shortcuts.find((item) => item.id === id);
+  if (!shortcut) return;
+
+  shortcut.pinned = !shortcut.pinned;
+  shortcut.order = getTopShortcutOrder();
+  saveShortcuts();
+  renderShortcutArea();
+}
+
+function cleanupShortcutDragState() {
+  elements.shortcutGrid.querySelectorAll(".is-dragging, .is-drop-target").forEach((node) => {
+    node.classList.remove("is-dragging", "is-drop-target");
+  });
+  elements.shortcutGrid.classList.remove("is-drag-over");
+}
+
 function renderShortcuts({ animate = false } = {}) {
-  const visibleShortcuts =
-    selectedCategory === ALL_CATEGORY
-      ? shortcuts
-      : shortcuts.filter((shortcut) => shortcut.category === selectedCategory);
+  const visibleShortcuts = getVisibleShortcuts();
 
   elements.shortcutGrid.classList.toggle("is-switching", animate);
   elements.shortcutGrid.innerHTML = "";
@@ -551,16 +777,53 @@ function renderShortcuts({ animate = false } = {}) {
     const icon = node.querySelector(".shortcut-icon");
     const title = node.querySelector("strong");
     const host = node.querySelector("small");
+    const pinButton = node.querySelector(".pin-shortcut");
     const editButton = node.querySelector(".edit-shortcut");
 
+    node.dataset.shortcutId = shortcut.id;
+    node.draggable = true;
+    node.classList.toggle("is-pinned", Boolean(shortcut.pinned));
     link.href = shortcut.url;
+    link.draggable = false;
     node.classList.toggle("is-filtered-in", animate);
     node.style.animationDelay = animate ? `${Math.min(index * 0.025, 0.16)}s` : "";
-    icon.textContent = getInitials(shortcut.name);
-    icon.style.background = shortcut.color;
+    applyShortcutIcon(icon, shortcut);
     title.textContent = shortcut.name;
     host.textContent = getHostname(shortcut.url);
+    pinButton.textContent = shortcut.pinned ? "\u2605" : "\u2606";
+    pinButton.setAttribute("aria-pressed", String(Boolean(shortcut.pinned)));
+    pinButton.title = shortcut.pinned ? "取消置顶" : "置顶";
+    pinButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      toggleShortcutPin(shortcut.id);
+    });
     editButton.addEventListener("click", () => openDialog(shortcut.id));
+    node.addEventListener("dragstart", (event) => {
+      draggedShortcutId = shortcut.id;
+      node.classList.add("is-dragging");
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", shortcut.id);
+    });
+    node.addEventListener("dragover", (event) => {
+      if (!draggedShortcutId || draggedShortcutId === shortcut.id) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      node.classList.add("is-drop-target");
+    });
+    node.addEventListener("dragleave", () => {
+      node.classList.remove("is-drop-target");
+    });
+    node.addEventListener("drop", (event) => {
+      event.preventDefault();
+      node.classList.remove("is-drop-target");
+      moveShortcutInView(draggedShortcutId, shortcut.id);
+      draggedShortcutId = null;
+    });
+    node.addEventListener("dragend", () => {
+      draggedShortcutId = null;
+      cleanupShortcutDragState();
+    });
 
     elements.shortcutGrid.append(node);
   });
@@ -587,6 +850,8 @@ function openDialog(id = null) {
   editingId = id;
   const shortcut = shortcuts.find((item) => item.id === id);
   updateCategorySuggestions();
+  currentShortcutIconUrl = shortcut?.icon || "";
+  setShortcutMetaStatus("");
 
   elements.dialogTitle.textContent = shortcut ? "编辑快捷方式" : "添加快捷方式";
   elements.nameInput.value = shortcut?.name || "";
@@ -599,19 +864,27 @@ function openDialog(id = null) {
 }
 
 function closeDialog() {
+  metadataLookupController?.abort();
+  window.clearTimeout(metadataLookupTimer);
   elements.dialog.close();
   editingId = null;
+  currentShortcutIconUrl = "";
+  setShortcutMetaStatus("");
   elements.shortcutForm.reset();
 }
 
 function saveFromDialog(event) {
   event.preventDefault();
   autofillShortcutFromUrl();
+  const existing = shortcuts.find((shortcut) => shortcut.id === editingId);
   const data = {
     name: elements.nameInput.value.trim() || getNameFromUrl(elements.urlInput.value) || "新快捷方式",
     url: normalizeUrl(elements.urlInput.value),
     category: elements.categoryInput.value.trim() || DEFAULT_CATEGORY,
     color: elements.colorInput.value,
+    pinned: existing?.pinned || false,
+    icon: currentShortcutIconUrl,
+    order: existing?.order ?? getTopShortcutOrder(),
   };
 
   if (editingId) {
@@ -778,13 +1051,7 @@ function importShortcuts(event) {
       if (!Array.isArray(parsed)) throw new Error("Invalid shortcuts file");
       shortcuts = parsed
         .filter((item) => item.name && item.url)
-        .map((item) => ({
-          id: item.id || createId(),
-          name: String(item.name).slice(0, 24),
-          url: normalizeUrl(String(item.url)),
-          category: String(item.category || DEFAULT_CATEGORY).slice(0, 16),
-          color: /^#[0-9a-f]{6}$/i.test(item.color) ? item.color : "#e8442e",
-        }));
+        .map((item, index) => normalizeShortcut(item, index));
       saveShortcuts();
       selectedCategory = ALL_CATEGORY;
       renderShortcutArea();
@@ -827,16 +1094,40 @@ document.addEventListener("click", (event) => {
 elements.addButton.addEventListener("click", () => openDialog());
 elements.closeDialogButton.addEventListener("click", closeDialog);
 elements.cancelDialogButton.addEventListener("click", closeDialog);
-elements.urlInput.addEventListener("blur", () => autofillShortcutFromUrl());
+elements.urlInput.addEventListener("blur", () => {
+  autofillShortcutFromUrl();
+  lookupShortcutMetadata({ silent: true });
+});
 elements.urlInput.addEventListener("input", () => {
   const value = elements.urlInput.value.trim();
+  currentShortcutIconUrl = "";
+  setShortcutMetaStatus("");
   if (!elements.nameInput.value.trim() && looksLikeUrl(value)) autofillShortcutFromUrl();
+  if (looksLikeUrl(value)) scheduleShortcutMetadataLookup();
 });
+elements.metadataButton.addEventListener("click", () => lookupShortcutMetadata({ force: true }));
 elements.autoColorButton.addEventListener("click", () => autofillShortcutFromUrl({ forceColor: true }));
 elements.shortcutForm.addEventListener("submit", saveFromDialog);
 elements.deleteButton.addEventListener("click", deleteEditingShortcut);
 elements.exportButton.addEventListener("click", exportShortcuts);
 elements.importInput.addEventListener("change", importShortcuts);
+elements.shortcutGrid.addEventListener("dragover", (event) => {
+  if (!draggedShortcutId) return;
+  event.preventDefault();
+  elements.shortcutGrid.classList.add("is-drag-over");
+});
+elements.shortcutGrid.addEventListener("dragleave", (event) => {
+  if (!elements.shortcutGrid.contains(event.relatedTarget)) {
+    elements.shortcutGrid.classList.remove("is-drag-over");
+  }
+});
+elements.shortcutGrid.addEventListener("drop", (event) => {
+  if (!draggedShortcutId || event.target.closest(".shortcut-card")) return;
+  event.preventDefault();
+  moveShortcutInView(draggedShortcutId);
+  draggedShortcutId = null;
+  cleanupShortcutDragState();
+});
 elements.syncEnableButton.addEventListener("click", () => pullCloudData({ createIfMissing: true }));
 elements.syncPullButton.addEventListener("click", () => pullCloudData());
 elements.addWidgetButton.addEventListener("click", () => openWidgetDialog());
