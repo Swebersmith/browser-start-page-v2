@@ -11,8 +11,6 @@
     "db:migrate": "wrangler d1 migrations apply browser-start-page-db --remote"
   },
   "devDependencies": {
-    "esbuild": "^0.28.1",
-    "sharp": "^0.33.5",
     "vercel": "^44.0.0",
     "wrangler": "^4.0.0"
   }
