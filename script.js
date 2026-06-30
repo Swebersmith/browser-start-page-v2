@@ -2,6 +2,9 @@ const STORAGE_KEY = "browser-launchpad-shortcuts-v1";
 const ENGINE_KEY = "browser-launchpad-engine-v1";
 const WIDGET_KEY = "browser-launchpad-widgets-v1";
 const SYNC_KEY = "browser-launchpad-sync-key-v1";
+const SEARCH_HISTORY_KEY = "browser-launchpad-search-history-v1";
+const DARK_MODE_KEY = "browser-launchpad-dark-mode-v1";
+const MAX_SEARCH_HISTORY = 8;
 const ALL_CATEGORY = "全部";
 const DEFAULT_CATEGORY = "常用";
 
@@ -59,12 +62,22 @@ const defaultWidgets = [
   { id: createId(), title: "小新官网", type: "link", content: "https://www.shinchan-app.jp/", color: "#e8442e" },
 ];
 
+const fallbackHistoryEvents = {
+  "01-01": { year: "1912", title: "中华民国临时政府在南京成立。", detail: "孙中山在南京就任临时大总统，中华民国临时政府成立。" },
+  "02-12": { year: "1912", title: "清帝退位，中国两千多年君主专制制度结束。", detail: "清帝溥仪颁布退位诏书，清朝统治结束。" },
+  "05-04": { year: "1919", title: "五四运动爆发，成为中国近现代史的重要节点。", detail: "北京学生举行示威，推动了反帝反封建爱国运动。" },
+  "07-01": { year: "1921", title: "中国共产党成立纪念日。", detail: "中国共产党第一次全国代表大会召开于 1921 年，7 月 1 日后来被定为建党纪念日。" },
+  "10-01": { year: "1949", title: "中华人民共和国中央人民政府成立。", detail: "中华人民共和国开国大典在北京天安门广场举行。" },
+  "12-13": { year: "2014", title: "中国设立南京大屠杀死难者国家公祭日。", detail: "中国首次举行南京大屠杀死难者国家公祭仪式。" },
+};
+
 const elements = {
   dateText: document.querySelector("#dateText"),
   stageTimeText: document.querySelector("#stageTimeText"),
   stageDateText: document.querySelector("#stageDateText"),
   weatherIcon: document.querySelector("#weatherIcon"),
   weatherTemp: document.querySelector("#weatherTemp"),
+  weatherLocation: document.querySelector("#weatherLocation"),
   weatherDesc: document.querySelector("#weatherDesc"),
   weatherRefreshButton: document.querySelector("#weatherRefreshButton"),
   searchZone: document.querySelector(".search-zone"),
@@ -114,10 +127,16 @@ const elements = {
   closeWidgetDialogButton: document.querySelector("#closeWidgetDialogButton"),
   cancelWidgetDialogButton: document.querySelector("#cancelWidgetDialogButton"),
   deleteWidgetButton: document.querySelector("#deleteWidgetButton"),
+  darkToggleButton: document.querySelector("#darkToggleButton"),
+  searchHistory: document.querySelector("#searchHistory"),
+  todayHistoryYear: document.querySelector("#todayHistoryYear"),
+  todayHistoryText: document.querySelector("#todayHistoryText"),
+  todayHistoryDetail: document.querySelector("#todayHistoryDetail"),
 };
 
 let shortcuts = loadShortcuts();
 let widgets = loadWidgets();
+let searchHistory = loadSearchHistory();
 let selectedCategory = ALL_CATEGORY;
 let editingId = null;
 let editingWidgetId = null;
@@ -178,6 +197,92 @@ function saveWidgets() {
   scheduleCloudSave();
 }
 
+function loadSearchHistory() {
+  const raw = localStorage.getItem(SEARCH_HISTORY_KEY);
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((item) => typeof item === "string" && item.trim()).slice(0, MAX_SEARCH_HISTORY)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveSearchHistory({ sync = true } = {}) {
+  localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(searchHistory));
+  renderSearchHistory();
+  if (sync) scheduleCloudSave();
+}
+
+function addSearchHistory(query) {
+  const value = query.trim();
+  if (!value) return;
+  searchHistory = [value, ...searchHistory.filter((item) => item !== value)].slice(0, MAX_SEARCH_HISTORY);
+  saveSearchHistory();
+}
+
+function removeSearchHistory(query) {
+  searchHistory = searchHistory.filter((item) => item !== query);
+  saveSearchHistory();
+}
+
+function renderSearchHistory() {
+  elements.searchHistory.innerHTML = "";
+
+  if (!searchHistory.length || document.activeElement !== elements.searchInput) {
+    elements.searchHistory.hidden = true;
+    return;
+  }
+
+  const filter = elements.searchInput.value.trim().toLowerCase();
+  const visibleHistory = searchHistory.filter((item) => item.toLowerCase().includes(filter)).slice(0, MAX_SEARCH_HISTORY);
+  elements.searchHistory.hidden = !visibleHistory.length;
+
+  visibleHistory.forEach((query) => {
+    const item = document.createElement("div");
+    const searchButton = document.createElement("button");
+    const removeButton = document.createElement("button");
+
+    item.className = "history-item";
+    searchButton.type = "button";
+    searchButton.className = "history-query";
+    searchButton.textContent = query;
+    searchButton.addEventListener("mousedown", (event) => event.preventDefault());
+    searchButton.addEventListener("click", () => {
+      elements.searchInput.value = query;
+      runSearch(query);
+    });
+
+    removeButton.type = "button";
+    removeButton.className = "history-remove";
+    removeButton.textContent = "×";
+    removeButton.setAttribute("aria-label", `删除搜索记录：${query}`);
+    removeButton.addEventListener("mousedown", (event) => event.preventDefault());
+    removeButton.addEventListener("click", () => removeSearchHistory(query));
+
+    item.append(searchButton, removeButton);
+    elements.searchHistory.append(item);
+  });
+}
+
+function runSearch(query) {
+  const value = query.trim();
+  if (!value) return;
+
+  addSearchHistory(value);
+  flushCloudData();
+  if (looksLikeUrl(value)) {
+    window.open(normalizeUrl(value), "_self");
+    return;
+  }
+
+  const engine = searchEngines.find((item) => item.id === elements.engineSelect.value) || searchEngines[0];
+  window.open(`${engine.url}${encodeURIComponent(value)}`, "_self");
+}
+
 function setSyncStatus(message, tone = "neutral") {
   elements.syncStatus.textContent = message;
   elements.syncStatus.dataset.tone = tone;
@@ -187,7 +292,26 @@ function getSyncPayload() {
   return {
     shortcuts,
     widgets,
+    searchHistory,
   };
+}
+
+function flushCloudData() {
+  const syncKey = localStorage.getItem(SYNC_KEY);
+  if (!syncEnabled || !syncKey || isApplyingRemoteData) return;
+
+  const url = `/api/sync/${encodeURIComponent(syncKey)}`;
+  const body = JSON.stringify(getSyncPayload());
+  const blob = new Blob([body], { type: "application/json" });
+
+  if (navigator.sendBeacon?.(url, blob)) return;
+
+  fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body,
+    keepalive: true,
+  }).catch(() => undefined);
 }
 
 async function requestSync(method, syncKey, payload = null) {
@@ -213,12 +337,17 @@ function applyRemotePayload(payload) {
   isApplyingRemoteData = true;
   shortcuts = payload.shortcuts.map((item, index) => normalizeShortcut(item, index)).filter((item) => item.url);
   widgets = payload.widgets;
+  searchHistory = Array.isArray(payload.searchHistory)
+    ? payload.searchHistory.filter((item) => typeof item === "string" && item.trim()).slice(0, MAX_SEARCH_HISTORY)
+    : searchHistory;
   saveShortcuts();
   saveWidgets();
+  saveSearchHistory({ sync: false });
   isApplyingRemoteData = false;
 
   renderShortcutArea();
   renderWidgets();
+  renderSearchHistory();
 }
 
 async function pushCloudData(statusMessage = "已同步到云端。") {
@@ -536,10 +665,34 @@ function updateClock() {
   elements.stageDateText.textContent = dateText;
 }
 
-function setWeatherState({ mark = "?", temp = "等待定位", desc = "允许定位后，小新帮你看天气。" }) {
+function setWeatherState({ mark = "?", temp = "等待定位", location = "等待位置", desc = "允许定位后，小新帮你看天气。" }) {
   elements.weatherIcon.textContent = mark;
   elements.weatherTemp.textContent = temp;
+  elements.weatherLocation.textContent = location;
   elements.weatherDesc.textContent = desc;
+}
+
+function formatCoordinates(latitude, longitude) {
+  return `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+}
+
+async function resolveWeatherLocation(latitude, longitude) {
+  const fallback = `当前位置 ${formatCoordinates(latitude, longitude)}`;
+
+  try {
+    const params = new URLSearchParams({
+      latitude: String(latitude),
+      longitude: String(longitude),
+      localityLanguage: "zh",
+    });
+    const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?${params}`);
+    if (!response.ok) throw new Error("location lookup failed");
+    const data = await response.json();
+    const parts = [data.city || data.locality, data.principalSubdivision, data.countryName].filter(Boolean);
+    return parts.length ? parts.join(" · ") : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 function getCurrentPosition() {
@@ -558,12 +711,13 @@ function getCurrentPosition() {
 }
 
 async function loadWeather() {
-  setWeatherState({ mark: "...", temp: "正在定位", desc: "小新正在抬头看天空。" });
+  setWeatherState({ mark: "...", temp: "正在定位", location: "正在获取位置", desc: "小新正在抬头看天空。" });
   elements.weatherRefreshButton.disabled = true;
 
   try {
     const position = await getCurrentPosition();
     const { latitude, longitude } = position.coords;
+    const locationName = await resolveWeatherLocation(latitude, longitude);
     const params = new URLSearchParams({
       latitude: latitude.toFixed(4),
       longitude: longitude.toFixed(4),
@@ -585,12 +739,14 @@ async function loadWeather() {
     setWeatherState({
       mark: info.mark,
       temp: `${temperature}${tempUnit} · ${info.label}`,
+      location: locationName,
       desc: `湿度 ${humidity}% · 风速 ${wind}${windUnit}`,
     });
   } catch {
     setWeatherState({
       mark: "云",
       temp: "天气暂不可用",
+      location: "位置暂不可用",
       desc: "请允许定位，或稍后刷新一次。",
     });
   } finally {
@@ -1016,18 +1172,51 @@ function deleteEditingWidget() {
   renderWidgets();
 }
 
+function getTodayHistoryFallback() {
+  const now = new Date();
+  const key = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return fallbackHistoryEvents[key] || { year: "今天", title: "历史太厚，小新先记下今天要好好生活。" };
+}
+
+function setTodayHistory(event) {
+  elements.todayHistoryYear.textContent = event.year || "--";
+  elements.todayHistoryText.textContent = event.title || "今天没有找到特别记录。";
+  elements.todayHistoryDetail.textContent = event.detail || event.desc || event.title || "暂无更多介绍。";
+}
+
+async function loadTodayHistory() {
+  setTodayHistory({ year: "--", title: "正在翻小新家的旧相册..." });
+
+  try {
+    const response = await fetch("/api/today-history");
+    if (!response.ok) throw new Error("history unavailable");
+    const data = await response.json();
+    setTodayHistory(data);
+  } catch {
+    setTodayHistory(getTodayHistoryFallback());
+  }
+}
+
+function applyDarkMode(enabled) {
+  document.documentElement.dataset.theme = enabled ? "dark" : "";
+  localStorage.setItem(DARK_MODE_KEY, enabled ? "1" : "0");
+  elements.darkToggleButton.textContent = enabled ? "明" : "暗";
+  elements.darkToggleButton.setAttribute("aria-pressed", String(enabled));
+}
+
+function initDarkMode() {
+  const saved = localStorage.getItem(DARK_MODE_KEY);
+  const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+  applyDarkMode(saved === null ? Boolean(prefersDark) : saved === "1");
+}
+
+function toggleDarkMode() {
+  applyDarkMode(document.documentElement.dataset.theme !== "dark");
+}
+
 function submitSearch(event) {
   event.preventDefault();
-  const query = elements.searchInput.value.trim();
-  if (!query) return;
-
-  if (looksLikeUrl(query)) {
-    window.open(normalizeUrl(query), "_self");
-    return;
-  }
-
-  const engine = searchEngines.find((item) => item.id === elements.engineSelect.value) || searchEngines[0];
-  window.open(`${engine.url}${encodeURIComponent(query)}`, "_self");
+  runSearch(elements.searchInput.value);
 }
 
 function exportShortcuts() {
@@ -1111,6 +1300,14 @@ elements.shortcutForm.addEventListener("submit", saveFromDialog);
 elements.deleteButton.addEventListener("click", deleteEditingShortcut);
 elements.exportButton.addEventListener("click", exportShortcuts);
 elements.importInput.addEventListener("change", importShortcuts);
+elements.searchInput.addEventListener("focus", renderSearchHistory);
+elements.searchInput.addEventListener("input", renderSearchHistory);
+elements.searchInput.addEventListener("blur", () => {
+  window.setTimeout(() => {
+    elements.searchHistory.hidden = true;
+  }, 160);
+});
+elements.darkToggleButton.addEventListener("click", toggleDarkMode);
 elements.shortcutGrid.addEventListener("dragover", (event) => {
   if (!draggedShortcutId) return;
   event.preventDefault();
@@ -1139,7 +1336,10 @@ elements.weatherRefreshButton.addEventListener("click", loadWeather);
 
 updateClock();
 setInterval(updateClock, 1000);
+initDarkMode();
 loadWeather();
+loadTodayHistory();
 renderEngines();
 render();
+renderSearchHistory();
 initSync();

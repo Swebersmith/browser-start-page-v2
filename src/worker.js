@@ -1,6 +1,15 @@
 const MAX_PAYLOAD_BYTES = 250_000;
 const MAX_METADATA_BYTES = 96_000;
 
+const fallbackHistoryEvents = {
+  "01-01": { year: "1912", title: "中华民国临时政府在南京成立。", detail: "孙中山在南京就任临时大总统，中华民国临时政府成立。" },
+  "02-12": { year: "1912", title: "清帝退位，中国两千多年君主专制制度结束。", detail: "清帝溥仪颁布退位诏书，清朝统治结束。" },
+  "05-04": { year: "1919", title: "五四运动爆发，成为中国近现代史的重要节点。", detail: "北京学生举行示威，推动了反帝反封建爱国运动。" },
+  "07-01": { year: "1921", title: "中国共产党成立纪念日。", detail: "中国共产党第一次全国代表大会召开于 1921 年，7 月 1 日后来被定为建党纪念日。" },
+  "10-01": { year: "1949", title: "中华人民共和国中央人民政府成立。", detail: "中华人民共和国开国大典在北京天安门广场举行。" },
+  "12-13": { year: "2014", title: "中国设立南京大屠杀死难者国家公祭日。", detail: "中国首次举行南京大屠杀死难者国家公祭仪式。" },
+};
+
 const schemaSql =
   "CREATE TABLE IF NOT EXISTS sync_profiles (sync_key TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)";
 
@@ -24,11 +33,16 @@ function isMetadataPath(pathname) {
   return pathname === "/api/metadata";
 }
 
+function isTodayHistoryPath(pathname) {
+  return pathname === "/api/today-history";
+}
+
 function isValidPayload(payload) {
   return (
     payload &&
     Array.isArray(payload.shortcuts) &&
     Array.isArray(payload.widgets) &&
+    (!payload.searchHistory || Array.isArray(payload.searchHistory)) &&
     JSON.stringify(payload).length <= MAX_PAYLOAD_BYTES
   );
 }
@@ -148,6 +162,95 @@ async function handleMetadata(request) {
   }
 }
 
+function getTodayKeys(date = new Date()) {
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  return [
+    `${month}/${day}`,
+    `${month}-${day}`,
+    `${month}${day}`,
+    `${String(month).padStart(2, "0")}${String(day).padStart(2, "0")}`,
+    `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+  ];
+}
+
+function getTodayFallback(date = new Date()) {
+  const key = `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  return fallbackHistoryEvents[key] || { year: "今天", title: "历史太厚，小新先记下今天要好好生活。" };
+}
+
+function normalizeHistoryEvent(event) {
+  if (!event || typeof event !== "object") return null;
+  const title = event.title || event.event || event.desc || event.content || event.name || event.info;
+  const detail = event.desc || event.content || event.detail || event.description || title;
+  const year = event.year || event.date || event.time || "";
+  if (!title) return null;
+
+  return {
+    year: String(year).replace(/[^\d-]/g, "").slice(0, 8) || "今天",
+    title: String(title).replace(/\s+/g, " ").trim().slice(0, 80),
+    detail: String(detail).replace(/\s+/g, " ").trim().slice(0, 180),
+  };
+}
+
+function findHistoryEvent(value, todayKeys = getTodayKeys()) {
+  if (!value) return null;
+  if (Array.isArray(value)) return value.map((item) => findHistoryEvent(item, todayKeys)).find(Boolean) || null;
+  if (typeof value !== "object") return null;
+
+  const direct = normalizeHistoryEvent(value);
+  if (direct) return direct;
+
+  for (const key of todayKeys) {
+    const match = findHistoryEvent(value[key], todayKeys);
+    if (match) return match;
+  }
+
+  for (const key of ["data", "result", "list", "events", "content"]) {
+    const match = findHistoryEvent(value[key], todayKeys);
+    if (match) return match;
+  }
+
+  return null;
+}
+
+async function handleTodayHistory(request) {
+  if (request.method !== "GET") {
+    return json({ error: "METHOD_NOT_ALLOWED" }, { status: 405 });
+  }
+
+  const now = new Date();
+  const todayKeys = getTodayKeys(now);
+  const historyApis = [
+    "https://api.oioweb.cn/api/common/history",
+    "https://api.vvhan.com/api/history?type=json",
+  ];
+
+  for (const apiUrl of historyApis) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 6500);
+
+    try {
+      const response = await fetch(apiUrl, {
+        headers: { accept: "application/json,text/plain,*/*" },
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("history fetch failed");
+
+      const text = await readLimitedText(response, 80_000);
+      const data = JSON.parse(text);
+      const picked = findHistoryEvent(data, todayKeys);
+      if (picked) return json({ ...picked, source: new URL(apiUrl).hostname });
+    } catch {
+      // Try the next domestic source, then fall back locally.
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  return json({ ...getTodayFallback(now), source: "fallback" });
+}
+
 async function handleSync(request, env, syncKey) {
   if (!env.DB) {
     return json(
@@ -190,6 +293,7 @@ async function handleSync(request, env, syncKey) {
     const text = JSON.stringify({
       shortcuts: payload.shortcuts,
       widgets: payload.widgets,
+      searchHistory: Array.isArray(payload.searchHistory) ? payload.searchHistory.slice(0, 8) : [],
     });
 
     const result = await env.DB.prepare(
@@ -218,6 +322,10 @@ export default {
 
       if (isMetadataPath(url.pathname)) {
         return await handleMetadata(request);
+      }
+
+      if (isTodayHistoryPath(url.pathname)) {
+        return await handleTodayHistory(request);
       }
 
       if (syncKey) {

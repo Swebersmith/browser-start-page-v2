@@ -17,6 +17,25 @@
   --soft-shadow: 0 18px 44px rgba(76, 52, 20, 0.14);
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --paper: #14191f;
+  --paper-deep: #222b35;
+  --ink: #f4f0df;
+  --muted: #aab4be;
+  --line: #e9dec2;
+  --red: #ff725f;
+  --yellow: #ffd45a;
+  --blue: #78b7ff;
+  --green: #77d6a5;
+  --sky: #25465c;
+  --pink: #6d3147;
+  --cream: #1d242c;
+  --panel: rgba(29, 36, 44, 0.92);
+  --shadow: 8px 10px 0 rgba(0, 0, 0, 0.34);
+  --soft-shadow: 0 18px 44px rgba(0, 0, 0, 0.28);
+}
+
 * {
   box-sizing: border-box;
 }
@@ -27,6 +46,13 @@ html {
     radial-gradient(circle at 8% 12%, rgba(232, 68, 46, 0.18), transparent 19rem),
     radial-gradient(circle at 90% 12%, rgba(39, 117, 209, 0.2), transparent 23rem),
     linear-gradient(135deg, #fff2b7 0%, #fffdf5 38%, #c9efff 100%);
+}
+
+:root[data-theme="dark"] {
+  background:
+    radial-gradient(circle at 8% 12%, rgba(255, 114, 95, 0.18), transparent 19rem),
+    radial-gradient(circle at 90% 12%, rgba(120, 183, 255, 0.16), transparent 23rem),
+    linear-gradient(135deg, #10161d 0%, #18212b 48%, #253746 100%);
 }
 
 body {
@@ -198,6 +224,24 @@ select:focus-visible,
   box-shadow: 4px 5px 0 rgba(31, 35, 40, 0.18);
 }
 
+.dark-toggle {
+  position: fixed;
+  top: 16px;
+  right: 18px;
+  z-index: 120;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border: 3px solid var(--line);
+  border-radius: 50%;
+  background: var(--cream);
+  color: var(--ink);
+  box-shadow: 4px 5px 0 rgba(31, 35, 40, 0.16);
+  font-size: 14px;
+  font-weight: 950;
+}
+
 .shell {
   display: flex;
   flex-direction: column;
@@ -314,8 +358,10 @@ select:focus-visible,
 }
 
 .weather-stage {
-  grid-template-columns: minmax(210px, 0.72fr) minmax(320px, 1fr) minmax(190px, 0.62fr);
+  grid-template-columns: minmax(210px, 0.74fr) minmax(330px, 1fr) minmax(260px, 0.84fr);
   align-items: center;
+  z-index: 20;
+  overflow: visible;
 }
 
 .character-stage::before,
@@ -449,6 +495,19 @@ select:focus-visible,
   font-weight: 800;
 }
 
+.weather-location {
+  display: inline-block;
+  margin-top: 9px;
+  padding: 5px 9px;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: var(--sky);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 950;
+  line-height: 1.25;
+}
+
 .weather-refresh {
   position: absolute;
   right: 16px;
@@ -467,31 +526,67 @@ select:focus-visible,
   opacity: 0.72;
 }
 
-.weather-character-art {
+.today-history-panel {
   position: relative;
-  z-index: 1;
-  min-height: 210px;
-  overflow: hidden;
+  z-index: 6;
+  display: grid;
+  min-height: 184px;
+  align-content: center;
+  gap: 9px;
+  padding: 17px;
   border: 3px solid var(--line);
   border-radius: 10px;
-  background: #fff;
+  background: var(--cream);
   box-shadow: 5px 6px 0 rgba(31, 35, 40, 0.12);
 }
 
-.weather-character-art img {
-  position: absolute;
-  max-width: 100%;
-  object-fit: contain;
-  filter: drop-shadow(8px 12px 0 rgba(31, 35, 40, 0.12));
+.today-history-panel p {
+  margin: 0;
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 950;
 }
 
-.weather-scene {
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  max-width: none;
-  object-fit: cover;
-  filter: none;
+.today-history-panel strong {
+  color: var(--blue);
+  font-size: clamp(28px, 4vw, 44px);
+  line-height: 0.95;
+}
+
+.today-history-panel span {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 850;
+  line-height: 1.45;
+}
+
+.today-history-detail {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  top: calc(100% + 10px);
+  z-index: 120;
+  padding: 12px 13px;
+  border: 3px solid var(--line);
+  border-radius: 10px;
+  background: var(--cream);
+  color: var(--ink);
+  box-shadow: 6px 7px 0 rgba(31, 35, 40, 0.16);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1.55;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-8px);
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+}
+
+.today-history-panel:hover .today-history-detail,
+.today-history-panel:focus-within .today-history-detail {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 .search-zone::before {
@@ -749,6 +844,53 @@ select:focus-visible,
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 10px;
+}
+
+.search-history {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 90;
+  display: grid;
+  width: 100%;
+  gap: 7px;
+  padding: 10px;
+  border: 3px solid var(--line);
+  border-radius: 10px;
+  background: var(--cream);
+  box-shadow: 7px 9px 0 rgba(31, 35, 40, 0.16);
+}
+
+.search-history[hidden] {
+  display: none;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.history-item button {
+  min-height: 34px;
+  border-radius: 999px;
+  padding: 0 12px;
+  background: #fff;
+  font-weight: 900;
+}
+
+.history-item .history-query {
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-item .history-remove {
+  width: 34px;
+  padding: 0;
+  color: var(--red);
 }
 
 .quick-engines button,
@@ -1681,6 +1823,12 @@ dialog[open] .dialog-card {
     grid-template-columns: 1fr;
   }
 
+  .search-history {
+    left: 0;
+    top: calc(100% + 6px);
+    width: 100%;
+  }
+
   .character-stage {
     grid-template-columns: 1fr;
     min-height: 0;
@@ -1709,14 +1857,6 @@ dialog[open] .dialog-card {
     justify-self: start;
   }
 
-  .weather-character-art {
-    min-height: 190px;
-  }
-
-  .weather-scene {
-    position: absolute;
-  }
-
   .section-head {
     align-items: flex-start;
     flex-direction: column;
@@ -1740,4 +1880,129 @@ dialog[open] .dialog-card {
   .doodle-pencil {
     display: none;
   }
+}
+
+:root[data-theme="dark"] .hero-strip,
+:root[data-theme="dark"] .character-stage,
+:root[data-theme="dark"] .weather-panel,
+:root[data-theme="dark"] .weather-time-card,
+:root[data-theme="dark"] .today-history-panel,
+:root[data-theme="dark"] .sync-panel,
+:root[data-theme="dark"] .shortcut-card,
+:root[data-theme="dark"] .widget-card,
+:root[data-theme="dark"] .dialog-card,
+:root[data-theme="dark"] .engine-menu,
+:root[data-theme="dark"] .search-history {
+  background: var(--cream);
+}
+
+:root[data-theme="dark"] .search-input-wrap input,
+:root[data-theme="dark"] .dialog-card input,
+:root[data-theme="dark"] .dialog-card select,
+:root[data-theme="dark"] .dialog-card textarea,
+:root[data-theme="dark"] .sync-panel input,
+:root[data-theme="dark"] .engine-select-button,
+:root[data-theme="dark"] .engine-option,
+:root[data-theme="dark"] .history-item button {
+  background: #111820;
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] .hero-strip-copy span,
+:root[data-theme="dark"] .engine-selected-copy small,
+:root[data-theme="dark"] .engine-option-copy small,
+:root[data-theme="dark"] .weather-panel span,
+:root[data-theme="dark"] .today-history-panel span,
+:root[data-theme="dark"] .shortcut-meta small,
+:root[data-theme="dark"] .widget-content,
+:root[data-theme="dark"] .sync-panel p,
+:root[data-theme="dark"] .dialog-card label,
+:root[data-theme="dark"] .shortcut-meta-status {
+  color: #d5deea;
+}
+
+:root[data-theme="dark"] .hero-strip-copy strong,
+:root[data-theme="dark"] .weather-panel strong,
+:root[data-theme="dark"] .shortcut-meta strong,
+:root[data-theme="dark"] .widget-card h3,
+:root[data-theme="dark"] .today-history-detail,
+:root[data-theme="dark"] .dialog-head h2 {
+  color: #fff7d8;
+}
+
+:root[data-theme="dark"] .eyebrow,
+:root[data-theme="dark"] .weather-location,
+:root[data-theme="dark"] .today-history-detail,
+:root[data-theme="dark"] .edit-shortcut,
+:root[data-theme="dark"] .edit-widget,
+:root[data-theme="dark"] .pin-shortcut,
+:root[data-theme="dark"] .dark-toggle {
+  background: #111820;
+}
+
+:root[data-theme="dark"] .today-history-detail {
+  box-shadow: 6px 7px 0 rgba(0, 0, 0, 0.36);
+}
+
+:root[data-theme="dark"] .shortcut-icon.has-favicon {
+  background: #fff !important;
+}
+
+:root[data-theme="dark"] .quick-engines button,
+:root[data-theme="dark"] .tabs button,
+:root[data-theme="dark"] .actions button,
+:root[data-theme="dark"] .import-button,
+:root[data-theme="dark"] .sync-panel button,
+:root[data-theme="dark"] .section-head button {
+  border-color: #d8cda9;
+  background: #111820;
+  color: #f4f0df;
+  box-shadow: 3px 4px 0 rgba(0, 0, 0, 0.28);
+}
+
+:root[data-theme="dark"] .quick-engines button:nth-child(3n + 1),
+:root[data-theme="dark"] .tabs button:nth-child(3n + 1) {
+  background: #18212b;
+}
+
+:root[data-theme="dark"] .quick-engines button:nth-child(3n + 2),
+:root[data-theme="dark"] .tabs button:nth-child(3n + 2) {
+  background: #242615;
+}
+
+:root[data-theme="dark"] .quick-engines button:nth-child(3n),
+:root[data-theme="dark"] .tabs button:nth-child(3n) {
+  background: #142433;
+}
+
+:root[data-theme="dark"] .quick-engines button.is-active,
+:root[data-theme="dark"] .tabs button.is-active {
+  background: #78b7ff;
+  border-color: #e9dec2;
+  color: #08111a;
+}
+
+:root[data-theme="dark"] .quick-engines .engine-google.is-active {
+  background: linear-gradient(90deg, #2d5fae 0 25%, #a8342b 25% 50%, #b98a16 50% 75%, #287744 75%);
+  color: #fff7d8;
+}
+
+:root[data-theme="dark"] .quick-engines .engine-bing.is-active {
+  background: #006b61;
+  color: #fff7d8;
+}
+
+:root[data-theme="dark"] .quick-engines .engine-baidu.is-active {
+  background: #343db8;
+  color: #fff7d8;
+}
+
+:root[data-theme="dark"] .quick-engines .engine-duckduckgo.is-active {
+  background: #aa4529;
+  color: #fff7d8;
+}
+
+:root[data-theme="dark"] .quick-engines .engine-github.is-active {
+  background: #2b3138;
+  color: #fff7d8;
 }

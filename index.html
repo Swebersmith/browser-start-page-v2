@@ -14,6 +14,7 @@
       <span class="doodle doodle-pencil"></span>
       <span class="doodle doodle-badge">Action</span>
     </div>
+    <button id="darkToggleButton" class="dark-toggle" type="button" aria-label="切换暗色模式" title="切换暗色模式">暗</button>
 
     <main class="shell">
       <section class="topbar hero-strip" aria-label="今日状态">
@@ -48,7 +49,7 @@
             </button>
             <div id="engineMenu" class="engine-menu" role="listbox" aria-labelledby="engineSelectLabel"></div>
           </div>
-          <label class="search-input-wrap">
+          <div class="search-input-wrap">
             <span class="sr-only">搜索内容或网址</span>
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="11" cy="11" r="7"></circle>
@@ -57,11 +58,13 @@
             <input
               id="searchInput"
               type="text"
+              aria-label="Search"
               autocomplete="off"
               placeholder="搜索，或者输入网址直接打开"
               autofocus
             />
-          </label>
+            <div class="search-history" id="searchHistory" hidden></div>
+          </div>
           <button class="search-button" type="submit">出发</button>
         </form>
         <div class="quick-engines" id="engineButtons" aria-label="搜索引擎快捷切换"></div>
@@ -105,12 +108,16 @@
           <div>
             <p class="weather-kicker">当前天气</p>
             <strong id="weatherTemp">定位后显示</strong>
+            <small class="weather-location" id="weatherLocation">等待位置</small>
             <span id="weatherDesc">允许定位后，小新帮你看天气。</span>
           </div>
           <button id="weatherRefreshButton" class="weather-refresh" type="button">刷新</button>
         </div>
-        <div class="weather-character-art" aria-hidden="true">
-          <img class="weather-scene" src="./assets/custom/kasukabe-evening.jpg" alt="" />
+        <div class="today-history-panel" aria-label="历史上的今天" tabindex="0">
+          <p>历史上的今天</p>
+          <strong id="todayHistoryYear">--</strong>
+          <span id="todayHistoryText">正在翻小新家的旧相册...</span>
+          <div class="today-history-detail" id="todayHistoryDetail" role="tooltip">正在翻小新家的旧相册...</div>
         </div>
       </section>
 
