@@ -101,13 +101,23 @@ async function handleSync(request, env, syncKey) {
 
 export default {
   async fetch(request, env) {
-    const url = new URL(request.url);
-    const syncKey = getSyncKey(url.pathname);
+    try {
+      const url = new URL(request.url);
+      const syncKey = getSyncKey(url.pathname);
 
-    if (syncKey) {
-      return handleSync(request, env, syncKey);
+      if (syncKey) {
+        return handleSync(request, env, syncKey);
+      }
+
+      return env.ASSETS.fetch(request);
+    } catch (error) {
+      return json(
+        {
+          error: "WORKER_EXCEPTION",
+          message: error instanceof Error ? error.message : String(error),
+        },
+        { status: 500 },
+      );
     }
-
-    return env.ASSETS.fetch(request);
   },
 };
