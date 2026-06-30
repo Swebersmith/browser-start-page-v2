@@ -1,6 +1,11 @@
 {
+  "name": "browser-start-page",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
+    "deploy": "wrangler deploy",
     "deploy:cloudflare": "npm run build && wrangler deploy",
     "deploy:vercel": "npm run build && vercel --prod"
   },

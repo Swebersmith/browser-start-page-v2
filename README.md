@@ -76,7 +76,25 @@ docker run -d --name launchpad -p 8080:80 -v "$PWD":/usr/share/nginx/html:ro ngi
 
 ## 部署到 Cloudflare Workers
 
-本项目已包含 `wrangler.jsonc`，使用 Cloudflare Workers Static Assets。
+本项目已包含 `wrangler.jsonc`，使用 Cloudflare Workers Static Assets。推荐直接在 Cloudflare Workers 里连接 GitHub 仓库自动部署。
+
+### GitHub 自动部署
+
+1. 进入 Cloudflare Dashboard。
+2. 打开 Workers & Pages。
+3. 选择创建 Worker，并连接 GitHub 仓库 `Swebersmith/browser-start-page`。
+4. 使用下面的构建配置：
+
+```txt
+Build command: npm run build
+Deploy command: npx wrangler deploy
+Root directory: /
+Output directory: dist
+```
+
+`wrangler.jsonc` 会把 `dist/` 作为 Workers Static Assets 发布目录。之后每次推送到 GitHub `main` 分支，Cloudflare 都会自动重新构建并部署。
+
+### 本地手动部署
 
 ```bash
 npm install
