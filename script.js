@@ -316,44 +316,94 @@ async function reverseGeocode(lat, lon) {
 }
 
 async function loadTodayInHistory() {
+  const now = new Date();
+  const mm = now.getMonth() + 1;
+  const dd = now.getDate();
+  const todaySeed = now.getFullYear() * 10000 + mm * 100 + dd;
+
+  // Try domestic free API first
   try {
-    const now = new Date();
-    const mm = String(now.getMonth() + 1).padStart(2, "0");
-    const dd = String(now.getDate()).padStart(2, "0");
-    const url = `https://zh.wikipedia.org/api/rest_v1/feed/onthisday/events/${mm}/${dd}`;
-    const resp = await fetch(url);
-    if (!resp.ok) throw new Error("WIKI_FAILED");
-    const data = await resp.json();
-    const events = data.events || [];
-    if (!events.length) throw new Error("NO_EVENTS");
-
-    const todaySeed = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
-    const idx = (todaySeed * 1103515245 + 12345 >>> 0) % events.length;
-    const event = events[idx];
-
-    elements.historyYear.textContent = `${event.year} 年`;
-    elements.historyText.textContent = event.text || "";
-
-    const pages = event.pages || [];
-    const page = pages[0];
-    elements.historyTooltipText.textContent = "";
-    elements.historyTooltipLink.hidden = true;
-
-    if (page?.content_urls?.desktop?.page) {
-      elements.historyTooltipLink.href = page.content_urls.desktop.page;
-      elements.historyTooltipLink.hidden = false;
-      const extractUrl = `https://zh.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(page.title)}`;
-      const extResp = await fetch(extractUrl);
-      if (extResp.ok) {
-        const extData = await extResp.json();
-        elements.historyTooltipText.textContent = extData.extract || "";
+    const resp = await fetch(`https://api.vvhan.com/api/history?type=json`, { signal: AbortSignal.timeout(5000) });
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.success && Array.isArray(data.data) && data.data.length) {
+        const idx = (todaySeed * 1103515245 + 12345 >>> 0) % data.data.length;
+        const event = data.data[idx];
+        elements.historyYear.textContent = `${event.year || "--"} 年`;
+        elements.historyText.textContent = event.title || event.event || "";
+        elements.historyTooltipText.textContent = event.desc || event.title || "";
+        elements.historyTooltipLink.hidden = true;
+        return;
       }
     }
-  } catch {
+  } catch { /* fallback to local dataset */ }
+
+  // Fallback to local Chinese history dataset
+  const candidates = CHINA_HISTORY.filter((e) => e[0] === mm && e[1] === dd);
+
+  if (!candidates.length) {
     elements.historyYear.textContent = "--";
     elements.historyText.textContent = "今天没有特别的历史事件记录。";
+    elements.historyTooltipText.textContent = "";
+    elements.historyTooltipLink.hidden = true;
+    return;
   }
+
+  const idx = (todaySeed * 1103515245 + 12345 >>> 0) % candidates.length;
+  const [, , year, text, desc = ""] = candidates[idx];
+
+  elements.historyYear.textContent = `${year} 年`;
+  elements.historyText.textContent = text;
+  elements.historyTooltipText.textContent = desc || text;
+  elements.historyTooltipLink.hidden = true;
 }
+
+// Chinese historical events dataset
+const CHINA_HISTORY = [
+[1,1,1912,"中华民国成立，孙中山就任临时大总统","辛亥革命推翻清朝，结束两千多年封建帝制。"],
+[1,8,1976,"周恩来总理逝世","新中国第一任总理周恩来逝世，举国哀悼。"],
+[1,15,1935,"遵义会议召开","确立毛泽东在党和红军中的领导地位，是中共历史上生死攸关的转折点。"],
+[1,18,1919,"巴黎和会召开","对中国的不公正处理直接引发五四运动。"],
+[1,31,1949,"北平和平解放","中国人民解放军进入北平城，千年古都和平解放。"],
+[2,1,1662,"郑成功收复台湾","荷兰殖民者投降，台湾重回祖国怀抱。"],
+[2,12,1912,"清帝溥仪宣布退位","清朝灭亡，封建帝制正式终结。"],
+[2,19,1997,"邓小平逝世","改革开放总设计师邓小平逝世，享年93岁。"],
+[2,21,1972,"尼克松访华","美国总统尼克松抵达北京，中美关系正常化迈出关键一步。"],
+[3,5,1963,"毛泽东题词'向雷锋同志学习'","雷锋成为全国人民学习的榜样。"],
+[3,12,1925,"孙中山逝世","中国民主革命先行者孙中山逝世，留下'革命尚未成功'的遗言。"],
+[4,15,1912,"泰坦尼克号沉没","豪华邮轮泰坦尼克号在处女航中撞上冰山沉没。"],
+[4,18,1955,"万隆会议召开","周恩来提出'求同存异'方针。"],
+[4,24,1970,"东方红一号发射成功","中国第一颗人造卫星发射成功，播放《东方红》乐曲。"],
+[5,4,1919,"五四运动爆发","北京学生游行示威反对巴黎和会，成为中国新民主主义革命的开端。"],
+[5,12,2008,"汶川发生8.0级特大地震","造成重大人员伤亡和财产损失。"],
+[5,23,1951,"西藏和平解放","中央政府与西藏地方政府签署和平解放协议。"],
+[6,17,1967,"中国第一颗氢弹爆炸成功","在罗布泊上空成功爆炸，威力330万吨TNT当量。"],
+[7,1,1921,"中国共产党成立","中共一大在上海召开，中国共产党正式成立。"],
+[7,1,1997,"香港回归祖国","香港特别行政区成立，结束英国殖民统治。"],
+[7,7,1937,"卢沟桥事变爆发","日本侵略军进攻卢沟桥，全面抗日战争爆发。"],
+[7,13,2001,"北京申奥成功","国际奥委会宣布北京获得2008年夏季奥运会主办权。"],
+[7,20,1969,"人类首次登月","阿波罗11号宇航员阿姆斯特朗踏上月球表面。"],
+[7,28,1976,"唐山大地震","河北唐山发生7.8级大地震，24万余人遇难。"],
+[8,1,1927,"南昌起义","标志着中国共产党独立领导武装斗争的开始。"],
+[8,8,2008,"北京奥运会开幕","第29届夏季奥林匹克运动会在北京国家体育场开幕。"],
+[8,15,1945,"日本宣布无条件投降","裕仁天皇广播宣布接受波茨坦公告，二战亚洲战场结束。"],
+[9,3,1945,"抗日战争胜利纪念日","中国人民抗日战争取得伟大胜利。"],
+[9,9,1976,"毛泽东逝世","中共中央主席毛泽东在北京逝世，享年83岁。"],
+[9,18,1931,"九一八事变","日本关东军炸毁南满铁路发动侵华战争。"],
+[10,1,1949,"中华人民共和国成立","毛泽东在天安门城楼宣布新中国成立。"],
+[10,10,1911,"辛亥革命爆发","武昌起义成功，推翻清朝统治。"],
+[10,16,1964,"中国第一颗原子弹爆炸成功","成为世界上第五个拥有核武器的国家。"],
+[10,25,1971,"中国恢复在联合国合法席位","联大通过2758号决议。"],
+[11,7,1917,"俄国十月革命爆发","列宁领导的布尔什维克党建立首个社会主义国家。"],
+[11,12,1866,"孙中山诞辰","中国民主革命先驱孙中山在广东香山出生。"],
+[12,9,1935,"一二·九运动爆发","北平学生举行抗日救国示威游行。"],
+[12,11,2001,"中国正式加入世界贸易组织","WTO多哈会议通过中国入世决定。"],
+[12,12,1936,"西安事变","张学良杨虎城发动兵谏，迫使蒋介石停止内战一致抗日。"],
+[12,13,1937,"南京大屠杀开始","日军攻陷南京后在六周内屠杀30万中国军民。"],
+[12,18,1978,"十一届三中全会召开","揭开了改革开放的序幕。"],
+[12,20,1999,"澳门回归祖国","澳门特别行政区成立，结束葡萄牙400多年统治。"],
+[12,26,1893,"毛泽东诞辰","毛泽东出生于湖南湘潭韶山冲。"],
+];
 
 function getSyncPayload() {
   return {
