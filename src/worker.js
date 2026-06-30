@@ -1,12 +1,7 @@
 const MAX_PAYLOAD_BYTES = 250_000;
 
-const schemaSql = `
-CREATE TABLE IF NOT EXISTS sync_profiles (
-  sync_key TEXT PRIMARY KEY,
-  payload TEXT NOT NULL,
-  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-`;
+const schemaSql =
+  "CREATE TABLE IF NOT EXISTS sync_profiles (sync_key TEXT PRIMARY KEY, payload TEXT NOT NULL, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)";
 
 function json(data, init = {}) {
   return new Response(JSON.stringify(data), {
@@ -34,7 +29,7 @@ function isValidPayload(payload) {
 }
 
 async function ensureSchema(db) {
-  await db.exec(schemaSql);
+  await db.prepare(schemaSql).run();
 }
 
 async function handleSync(request, env, syncKey) {
