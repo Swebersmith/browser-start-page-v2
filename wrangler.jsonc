@@ -9,14 +9,11 @@
     "not_found_handling": "single-page-application",
     "run_worker_first": ["/api/*"]
   },
-
-  // Create a D1 database in Cloudflare, then uncomment this block and paste its database_id.
-  // Keep binding = "DB"; the Worker API uses env.DB for multi-device sync.
-  // "d1_databases": [
-  //   {
-  //     "binding": "DB",
-  //     "database_name": "browser-start-page-db",
-  //     "database_id": "paste-your-d1-database-id-here"
-  //   }
-  // ]
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "browser-start-page-db",
+      "database_id": "66afa09c-fcd4-408b-9744-9861252ddd5a"
+    }
+  ]
 }
