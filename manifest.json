@@ -1,0 +1,14 @@
+{
+  "name": "小新风启动台",
+  "short_name": "启动台",
+  "description": "蜡笔小新风格的浏览器起始页",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fffdf5",
+  "theme_color": "#2775d1",
+  "icons": [{
+    "src": "./assets/bnr_super-shiro.png",
+    "sizes": "198x198",
+    "type": "image/png"
+  }]
+}

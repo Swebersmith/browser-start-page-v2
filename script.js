@@ -2,6 +2,9 @@ const STORAGE_KEY = "browser-launchpad-shortcuts-v1";
 const ENGINE_KEY = "browser-launchpad-engine-v1";
 const WIDGET_KEY = "browser-launchpad-widgets-v1";
 const SYNC_KEY = "browser-launchpad-sync-key-v1";
+const DARK_KEY = "browser-launchpad-dark-v1";
+const HISTORY_KEY = "browser-launchpad-history-v1";
+const MAX_HISTORY = 20;
 const ALL_CATEGORY = "全部";
 const DEFAULT_CATEGORY = "常用";
 
@@ -36,6 +39,13 @@ const weatherCodeMap = {
   96: { label: "雷雨伴冰雹", mark: "雷" },
   99: { label: "强雷雨伴冰雹", mark: "雷" },
 };
+
+async function hashSyncKey(text) {
+  if (!text) return "";
+  const data = new TextEncoder().encode(text.trim());
+  const hash = await crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(hash)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 function createId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -114,14 +124,29 @@ const elements = {
   closeWidgetDialogButton: document.querySelector("#closeWidgetDialogButton"),
   cancelWidgetDialogButton: document.querySelector("#cancelWidgetDialogButton"),
   deleteWidgetButton: document.querySelector("#deleteWidgetButton"),
+  darkToggleButton: document.querySelector("#darkToggleButton"),
+  heroQuoteText: document.querySelector("#heroQuoteText"),
+  heroQuoteSub: document.querySelector("#heroQuoteSub"),
+  searchHistory: document.querySelector("#searchHistory"),
+  weatherLocation: document.querySelector("#weatherLocation"),
+  historyYear: document.querySelector("#historyYear"),
+  historyText: document.querySelector("#historyText"),
+  historyTooltipText: document.querySelector("#historyTooltipText"),
+  historyTooltipLink: document.querySelector("#historyTooltipLink"),
+  contextMenu: document.querySelector("#contextMenu"),
 };
 
 let shortcuts = loadShortcuts();
 let widgets = loadWidgets();
+let searchHistoryList = loadSearchHistory();
 let selectedCategory = ALL_CATEGORY;
 let editingId = null;
 let editingWidgetId = null;
+let searchQuery = "";
+let contextMenuTargetId = null;
+let contextMenuTimer = null;
 let syncEnabled = false;
+let weatherCoords = null;
 let isApplyingRemoteData = false;
 let syncSaveTimer = null;
 let draggedShortcutId = null;
@@ -178,20 +203,169 @@ function saveWidgets() {
   scheduleCloudSave();
 }
 
+function loadSearchHistory() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(HISTORY_KEY));
+    return Array.isArray(parsed) ? parsed.slice(0, MAX_HISTORY) : [];
+  } catch { return []; }
+}
+
+function addSearchHistory(query) {
+  const trimmed = query.trim();
+  if (!trimmed || trimmed.length > 80) return;
+  searchHistoryList = [trimmed, ...searchHistoryList.filter((i) => i !== trimmed)].slice(0, MAX_HISTORY);
+  saveHistoryAndSync();
+}
+
+function saveHistoryAndSync() {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(searchHistoryList));
+  scheduleCloudSave();
+}
+
+function saveSearchHistory() { localStorage.setItem(HISTORY_KEY, JSON.stringify(searchHistoryList)); }
+
+function renderSearchHistory() {
+  elements.searchHistory.innerHTML = "";
+  if (!searchHistoryList.length) { elements.searchHistory.hidden = true; return; }
+  elements.searchHistory.hidden = false;
+  searchHistoryList.forEach((query) => {
+    const row = document.createElement("div");
+    row.className = "history-item";
+    const text = document.createElement("span");
+    text.textContent = query;
+    text.addEventListener("click", () => {
+      elements.searchInput.value = query;
+      elements.searchForm.dispatchEvent(new Event("submit", { cancelable: true }));
+      elements.searchHistory.hidden = true;
+    });
+    const removeBtn = document.createElement("button");
+    removeBtn.textContent = "x";
+    removeBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      searchHistoryList = searchHistoryList.filter((i) => i !== query);
+      saveSearchHistory();
+      renderSearchHistory();
+    });
+    row.append(text, removeBtn);
+    elements.searchHistory.append(row);
+  });
+}
+
 function setSyncStatus(message, tone = "neutral") {
   elements.syncStatus.textContent = message;
   elements.syncStatus.dataset.tone = tone;
+}
+
+// Daily Shin-chan quotes (deterministic per date)
+function getDailyQuote() {
+  const quotes = [
+    ["\"嗨，美女，你喜欢吃青椒吗？\"", "—— 野原新之助"],
+    ["\"我叫野原新之助，今年五岁！\"", "—— 野原新之助"],
+    ["\"动感超人！哔哔哔哔——\"", "—— 野原新之助"],
+    ["\"小白！棉花糖！\"", "—— 野原新之助"],
+    ["\"我要成为大人的话，一定要当一个什么都不用做的大人。\"", "—— 野原新之助"],
+    ["\"妈妈，我要看动感超人！\"", "—— 野原新之助"],
+    ["\"风间，我们来玩装死游戏吧！\"", "—— 野原新之助"],
+    ["\"我的梦想是，吃遍全世界所有的点心！\"", "—— 野原新之助"],
+    ["\"小姐，请问你家的WIFI密码是多少？\"", "—— 野原新之助"],
+    ["\"如果遇到困难，就跳奇怪的舞解决！\"", "—— 野原新之助"],
+    ["\"诶？这不是我的错，是地球的引力太大了。\"", "—— 野原新之助"],
+    ["\"妮妮，你的真实玩偶让我也用一下嘛！\"", "—— 野原新之助"],
+    ["\"只要有动感超人，一切都会好起来的。\"", "—— 野原新之助"],
+    ["\"我可是春日部防卫队队长哦！\"", "—— 野原新之助"],
+    ["\"阿呆，你的鼻涕今天也很健康呢！\"", "—— 野原新之助"],
+    ["\"人生嘛，开心最重要啦！\"", "—— 野原广志"],
+    ["\"就算被嘲笑也没关系，因为笑笑就过去了。\"", "—— 野原新之助"],
+    ["\"晚饭吃什么？咖喱？太好了！\"", "—— 野原新之助"],
+    ["\"我不想上学，我想在家看电视。\"", "—— 野原新之助"],
+    ["\"美冴妈妈生气的时候，整个春日部都会地震。\"", "—— 野原新之助"],
+    ["\"正男，不要哭了，我们一起去玩吧！\"", "—— 野原新之助"],
+    ["\"这就是传说中的大人世界吗？好无聊啊！\"", "—— 野原新之助"],
+    ["\"世界上的女人分为两种：漂亮的和更漂亮的。\"", "—— 野原新之助"],
+    ["\"傻气也是才能的一种！\"", "—— 野原新之助"],
+    ["\"大人总是在说'等一下'，到底要等到什么时候嘛。\"", "—— 野原新之助"],
+    ["\"我的人生信条是：能坐着就不站着，能躺着就不坐着。\"", "—— 野原新之助"],
+    ["\"这件衣服好土哦，不过很适合妈妈！\"", "—— 野原新之助"],
+    ["\"喜欢一个人不需要理由，就像我喜欢娜娜子姐姐一样。\"", "—— 野原新之助"],
+    ["\"如果我是超级英雄，我的必杀技就是'装死'。\"", "—— 野原新之助"],
+    ["\"风间，你每天都学那么多东西，头不会爆炸吗？\"", "—— 野原新之助"],
+    ["\"我的人生，按我自己的节奏来就好了。\"", "—— 野原新之助"],
+    ["\"世界上最重要的就是家人和点心。\"", "—— 野原新之助"],
+  ];
+  const today = new Date();
+  const seed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
+  const index = (seed * 2654435761 >>> 0) % quotes.length;
+  return quotes[index];
+}
+
+function renderDailyQuote() {
+  const [quote, author] = getDailyQuote();
+  elements.heroQuoteText.textContent = quote;
+  elements.heroQuoteSub.textContent = author;
+}
+
+async function reverseGeocode(lat, lon) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&accept-language=zh`;
+    const resp = await fetch(url, { headers: { "User-Agent": "ShinchanLaunchpad/1.0" } });
+    if (!resp.ok) return "";
+    const data = await resp.json();
+    const addr = data.address || {};
+    return addr.city || addr.town || addr.county || addr.state || "";
+  } catch { return ""; }
+}
+
+async function loadTodayInHistory() {
+  try {
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const url = `https://zh.wikipedia.org/api/rest_v1/feed/onthisday/events/${mm}/${dd}`;
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error("WIKI_FAILED");
+    const data = await resp.json();
+    const events = data.events || [];
+    if (!events.length) throw new Error("NO_EVENTS");
+
+    const todaySeed = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+    const idx = (todaySeed * 1103515245 + 12345 >>> 0) % events.length;
+    const event = events[idx];
+
+    elements.historyYear.textContent = `${event.year} 年`;
+    elements.historyText.textContent = event.text || "";
+
+    const pages = event.pages || [];
+    const page = pages[0];
+    elements.historyTooltipText.textContent = "";
+    elements.historyTooltipLink.hidden = true;
+
+    if (page?.content_urls?.desktop?.page) {
+      elements.historyTooltipLink.href = page.content_urls.desktop.page;
+      elements.historyTooltipLink.hidden = false;
+      const extractUrl = `https://zh.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(page.title)}`;
+      const extResp = await fetch(extractUrl);
+      if (extResp.ok) {
+        const extData = await extResp.json();
+        elements.historyTooltipText.textContent = extData.extract || "";
+      }
+    }
+  } catch {
+    elements.historyYear.textContent = "--";
+    elements.historyText.textContent = "今天没有特别的历史事件记录。";
+  }
 }
 
 function getSyncPayload() {
   return {
     shortcuts,
     widgets,
+    searchHistory: searchHistoryList,
   };
 }
 
 async function requestSync(method, syncKey, payload = null) {
-  const response = await fetch(`/api/sync/${encodeURIComponent(syncKey)}`, {
+  const hashedKey = await hashSyncKey(syncKey);
+  const response = await fetch(`/api/sync/${encodeURIComponent(hashedKey)}`, {
     method,
     headers: payload ? { "content-type": "application/json" } : undefined,
     body: payload ? JSON.stringify(payload) : undefined,
@@ -208,17 +382,22 @@ async function requestSync(method, syncKey, payload = null) {
 }
 
 function applyRemotePayload(payload) {
-  if (!payload || !Array.isArray(payload.shortcuts) || !Array.isArray(payload.widgets)) return;
+  if (!payload || !Array.isArray(payload.shortcuts)) return;
 
   isApplyingRemoteData = true;
   shortcuts = payload.shortcuts.map((item, index) => normalizeShortcut(item, index)).filter((item) => item.url);
-  widgets = payload.widgets;
+  widgets = Array.isArray(payload.widgets) ? payload.widgets : [];
+  if (Array.isArray(payload.searchHistory)) {
+    searchHistoryList = payload.searchHistory.filter((i) => typeof i === "string").slice(0, MAX_HISTORY);
+  }
   saveShortcuts();
   saveWidgets();
+  saveSearchHistory();
   isApplyingRemoteData = false;
 
   renderShortcutArea();
   renderWidgets();
+  renderSearchHistory();
 }
 
 async function pushCloudData(statusMessage = "已同步到云端。") {
@@ -280,7 +459,7 @@ function initSync() {
 
   syncEnabled = true;
   elements.syncEnableButton.textContent = "同步已启用";
-  pullCloudData();
+  pullCloudData().catch(() => undefined);
 }
 
 function normalizeUrl(value) {
@@ -344,6 +523,16 @@ function getVisibleShortcuts() {
     selectedCategory === ALL_CATEGORY
       ? shortcuts
       : shortcuts.filter((shortcut) => shortcut.category === selectedCategory);
+
+  if (searchQuery) {
+    const lower = searchQuery.toLowerCase();
+    const filtered = visible.filter((item) =>
+      (item.name || "").toLowerCase().includes(lower) ||
+      (item.url || "").toLowerCase().includes(lower)
+    );
+    return getSortedShortcuts(filtered);
+  }
+
   return getSortedShortcuts(visible);
 }
 
@@ -564,6 +753,7 @@ async function loadWeather() {
   try {
     const position = await getCurrentPosition();
     const { latitude, longitude } = position.coords;
+    weatherCoords = { lat: latitude, lon: longitude };
     const params = new URLSearchParams({
       latitude: latitude.toFixed(4),
       longitude: longitude.toFixed(4),
@@ -587,6 +777,11 @@ async function loadWeather() {
       temp: `${temperature}${tempUnit} · ${info.label}`,
       desc: `湿度 ${humidity}% · 风速 ${wind}${windUnit}`,
     });
+
+    if (weatherCoords) {
+      const location = await reverseGeocode(weatherCoords.lat, weatherCoords.lon);
+      if (location) elements.weatherLocation.textContent = `📍 ${location}`;
+    }
   } catch {
     setWeatherState({
       mark: "云",
@@ -846,6 +1041,13 @@ function renderShortcutArea() {
   renderShortcuts();
 }
 
+function filterShortcutsBySearch(value) {
+  searchQuery = value.trim();
+  elements.searchHistory.hidden = !(!searchQuery && searchHistoryList.length && document.activeElement === elements.searchInput);
+  renderCategories();
+  renderShortcuts({ animate: searchQuery.length > 0 });
+}
+
 function openDialog(id = null) {
   editingId = id;
   const shortcut = shortcuts.find((item) => item.id === id);
@@ -1027,6 +1229,8 @@ function submitSearch(event) {
   }
 
   const engine = searchEngines.find((item) => item.id === elements.engineSelect.value) || searchEngines[0];
+  addSearchHistory(query);
+  renderSearchHistory();
   window.open(`${engine.url}${encodeURIComponent(query)}`, "_self");
 }
 
@@ -1038,6 +1242,68 @@ function exportShortcuts() {
   link.download = "shortcuts.json";
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function initDarkMode() {
+  const saved = localStorage.getItem(DARK_KEY);
+  const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+  const dark = saved !== null ? saved === "1" : prefersDark;
+  if (dark) document.documentElement.dataset.theme = "dark";
+  updateDarkToggle();
+}
+
+function toggleDarkMode() {
+  const isDark = document.documentElement.dataset.theme === "dark";
+  document.documentElement.dataset.theme = isDark ? "" : "dark";
+  localStorage.setItem(DARK_KEY, document.documentElement.dataset.theme === "dark" ? "1" : "0");
+  updateDarkToggle();
+}
+
+function updateDarkToggle() {
+  const isDark = document.documentElement.dataset.theme === "dark";
+  elements.darkToggleButton.textContent = isDark ? "明" : "暗";
+}
+
+function showContextMenu(event) {
+  const card = event.target.closest(".shortcut-card");
+  if (!card || !card.dataset.shortcutId) return;
+  event.preventDefault();
+  contextMenuTargetId = card.dataset.shortcutId;
+  const shortcut = shortcuts.find((item) => item.id === contextMenuTargetId);
+  if (!shortcut) return;
+  const pinBtn = elements.contextMenu.querySelector('[data-action="pin"]');
+  pinBtn.textContent = shortcut.pinned ? "取消置顶" : "置顶";
+  elements.contextMenu.hidden = false;
+  elements.contextMenu.style.left = `${Math.min(event.clientX, window.innerWidth - 210)}px`;
+  elements.contextMenu.style.top = `${Math.min(event.clientY, window.innerHeight - 210)}px`;
+  window.clearTimeout(contextMenuTimer);
+}
+
+function hideContextMenu() {
+  contextMenuTimer = window.setTimeout(() => {
+    elements.contextMenu.hidden = true;
+    contextMenuTargetId = null;
+  }, 80);
+}
+
+function handleContextMenuAction(action) {
+  const id = contextMenuTargetId;
+  hideContextMenu();
+  if (!id) return;
+  const shortcut = shortcuts.find((item) => item.id === id);
+  if (!shortcut) return;
+  switch (action) {
+    case "open": window.open(shortcut.url, "_blank", "noreferrer"); break;
+    case "edit": openDialog(id); break;
+    case "pin": toggleShortcutPin(id); break;
+    case "delete":
+      if (window.confirm(`确定删除「${shortcut.name}」这个快捷方式吗？`)) {
+        shortcuts = shortcuts.filter((item) => item.id !== id);
+        saveShortcuts();
+        renderShortcutArea();
+      }
+      break;
+  }
 }
 
 function importShortcuts(event) {
@@ -1136,10 +1402,41 @@ elements.cancelWidgetDialogButton.addEventListener("click", closeWidgetDialog);
 elements.widgetForm.addEventListener("submit", saveWidgetFromDialog);
 elements.deleteWidgetButton.addEventListener("click", deleteEditingWidget);
 elements.weatherRefreshButton.addEventListener("click", loadWeather);
+elements.darkToggleButton.addEventListener("click", toggleDarkMode);
+elements.searchInput.addEventListener("focus", () => {
+  if (!searchQuery) {
+    renderSearchHistory();
+    elements.searchHistory.hidden = !searchHistoryList.length;
+  }
+});
+elements.searchInput.addEventListener("blur", () => {
+  window.setTimeout(() => { elements.searchHistory.hidden = true; }, 180);
+});
+elements.searchInput.addEventListener("input", () => filterShortcutsBySearch(elements.searchInput.value));
+
+elements.contextMenu.addEventListener("click", (event) => {
+  const action = event.target.closest("button")?.dataset.action;
+  if (action) handleContextMenuAction(action);
+});
+
+elements.shortcutGrid.addEventListener("contextmenu", showContextMenu);
+document.addEventListener("click", (event) => {
+  if (!elements.contextMenu.contains(event.target) && !elements.contextMenu.hidden) hideContextMenu();
+});
+document.addEventListener("scroll", () => { if (!elements.contextMenu.hidden) hideContextMenu(); });
 
 updateClock();
 setInterval(updateClock, 1000);
 loadWeather();
 renderEngines();
 render();
+initDarkMode();
+renderDailyQuote();
+loadTodayInHistory();
 initSync();
+
+// Mobile tap handler for history card
+const historyCard = document.querySelector(".history-card");
+if (historyCard) {
+  historyCard.addEventListener("click", () => historyCard.classList.toggle("is-tapped"));
+}
