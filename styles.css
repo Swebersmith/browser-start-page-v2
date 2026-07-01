@@ -1114,7 +1114,10 @@ select:focus-visible,
 }
 
 .ai-settings-card {
-  width: min(520px, calc(100vw - 30px));
+  width: 100%;
+  max-height: min(760px, calc(100vh - 32px));
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .ai-settings-note {
@@ -1123,6 +1126,10 @@ select:focus-visible,
   font-size: 13px;
   font-weight: 800;
   line-height: 1.55;
+}
+
+.ai-settings-card .dialog-actions {
+  grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 .quick-engines button,
@@ -1597,6 +1604,11 @@ dialog {
   padding: 0;
   color: var(--ink);
   background: transparent;
+}
+
+#aiSettingsDialog {
+  width: min(560px, calc(100% - 30px));
+  overflow: visible;
 }
 
 dialog::backdrop {
