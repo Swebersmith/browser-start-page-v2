@@ -19,10 +19,12 @@ const aiProviders = [
 const defaultAiConfig = {
   provider: "local",
   localUrl: "http://127.0.0.1:8765",
-  cloudModel: "deepseek-chat",
+  cloudModel: "deepseek-v4-flash",
   customEndpoint: "",
   permissionMode: "confirm",
 };
+
+const supportedCloudModels = ["deepseek-v4-flash", "deepseek-v4-pro"];
 
 const searchEngines = [
   { id: "google", name: "Google", mark: "G", url: "https://www.google.com/search?q=" },
@@ -261,9 +263,13 @@ function loadAiConfig() {
 
   try {
     const parsed = JSON.parse(raw);
+    const cloudModel = supportedCloudModels.includes(parsed.cloudModel)
+      ? parsed.cloudModel
+      : defaultAiConfig.cloudModel;
     return {
       ...defaultAiConfig,
       ...parsed,
+      cloudModel,
       provider: aiProviders.some((provider) => provider.id === parsed.provider) ? parsed.provider : defaultAiConfig.provider,
     };
   } catch {
@@ -388,10 +394,11 @@ function closeAiSettings() {
 
 function saveAiSettings(event) {
   event.preventDefault();
+  const cloudModel = elements.aiCloudModel.value.trim();
   aiConfig = {
     provider: elements.aiProviderSelect.value,
     localUrl: normalizeLocalAgentUrl(elements.aiLocalUrl.value),
-    cloudModel: elements.aiCloudModel.value.trim() || defaultAiConfig.cloudModel,
+    cloudModel: supportedCloudModels.includes(cloudModel) ? cloudModel : defaultAiConfig.cloudModel,
     customEndpoint: elements.aiCustomEndpoint.value.trim(),
     permissionMode: elements.aiPermissionMode.value,
   };

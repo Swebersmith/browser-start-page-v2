@@ -266,6 +266,11 @@ function normalizeAiMessages(messages) {
     }));
 }
 
+function normalizeDeepSeekModel(value) {
+  const model = String(value || "").trim();
+  return ["deepseek-v4-flash", "deepseek-v4-pro"].includes(model) ? model : "deepseek-v4-flash";
+}
+
 async function handleAiChat(request, env) {
   if (request.method !== "POST") {
     return json({ error: "METHOD_NOT_ALLOWED" }, { status: 405 });
@@ -274,7 +279,7 @@ async function handleAiChat(request, env) {
   const body = await request.json().catch(() => null);
   const messages = normalizeAiMessages(body?.messages);
   const apiKey = env.DEEPSEEK_API_KEY || env.OPENAI_API_KEY;
-  const model = String(body?.model || env.DEEPSEEK_MODEL || env.OPENAI_MODEL || "deepseek-chat").slice(0, 80);
+  const model = normalizeDeepSeekModel(body?.model || env.DEEPSEEK_MODEL || env.OPENAI_MODEL);
 
   if (body?.ping) {
     return json({
