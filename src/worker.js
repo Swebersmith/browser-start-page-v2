@@ -37,6 +37,10 @@ function isTodayHistoryPath(pathname) {
   return pathname === "/api/today-history";
 }
 
+function isAiChatPath(pathname) {
+  return pathname === "/api/ai/chat";
+}
+
 function isValidPayload(payload) {
   return (
     payload &&
@@ -251,6 +255,84 @@ async function handleTodayHistory(request) {
   return json({ ...getTodayFallback(now), source: "fallback" });
 }
 
+function normalizeAiMessages(messages) {
+  if (!Array.isArray(messages)) return [];
+  return messages
+    .filter((message) => message && ["user", "assistant", "system"].includes(message.role) && typeof message.content === "string")
+    .slice(-16)
+    .map((message) => ({
+      role: message.role,
+      content: message.content.slice(0, 4000),
+    }));
+}
+
+async function handleAiChat(request, env) {
+  if (request.method !== "POST") {
+    return json({ error: "METHOD_NOT_ALLOWED" }, { status: 405 });
+  }
+
+  const body = await request.json().catch(() => null);
+  const messages = normalizeAiMessages(body?.messages);
+  const model = String(body?.model || env.OPENAI_MODEL || "gpt-4.1-mini").slice(0, 80);
+
+  if (body?.ping) {
+    return json({
+      ok: Boolean(env.OPENAI_API_KEY),
+      message: env.OPENAI_API_KEY ? "云端模型密钥已配置。" : "Cloudflare Worker 还没有配置 OPENAI_API_KEY。",
+    });
+  }
+
+  if (!messages.length) {
+    return json({ error: "EMPTY_MESSAGES", message: "消息不能为空。" }, { status: 400 });
+  }
+
+  if (!env.OPENAI_API_KEY) {
+    return json(
+      {
+        error: "AI_NOT_CONFIGURED",
+        message: "Cloudflare Worker 还没有配置 OPENAI_API_KEY。可以先使用本机 Agent 或自定义接口。",
+      },
+      { status: 503 },
+    );
+  }
+
+  const baseUrl = String(env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/+$/, "");
+  const response = await fetch(`${baseUrl}/chat/completions`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: "system",
+          content: "你是网页启动页里的 AI 助手。回答要简洁、可执行。涉及控制电脑时，提醒用户通过本机 Agent 桥接并确认权限。",
+        },
+        ...messages,
+      ],
+      temperature: 0.7,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    return json(
+      {
+        error: data.error?.code || "AI_REQUEST_FAILED",
+        message: data.error?.message || "云端模型请求失败。",
+      },
+      { status: response.status },
+    );
+  }
+
+  return json({
+    reply: data.choices?.[0]?.message?.content || "云端模型没有返回文本内容。",
+    model,
+  });
+}
+
 async function handleSync(request, env, syncKey) {
   if (!env.DB) {
     return json(
@@ -326,6 +408,10 @@ export default {
 
       if (isTodayHistoryPath(url.pathname)) {
         return await handleTodayHistory(request);
+      }
+
+      if (isAiChatPath(url.pathname)) {
+        return await handleAiChat(request, env);
       }
 
       if (syncKey) {
