@@ -137,6 +137,7 @@ const elements = {
 let shortcuts = loadShortcuts();
 let widgets = loadWidgets();
 let searchHistory = loadSearchHistory();
+let searchHistoryRequested = false;
 let selectedCategory = ALL_CATEGORY;
 let editingId = null;
 let editingWidgetId = null;
@@ -232,7 +233,7 @@ function removeSearchHistory(query) {
 function renderSearchHistory() {
   elements.searchHistory.innerHTML = "";
 
-  if (!searchHistory.length || document.activeElement !== elements.searchInput) {
+  if (!searchHistory.length || !searchHistoryRequested || document.activeElement !== elements.searchInput) {
     elements.searchHistory.hidden = true;
     return;
   }
@@ -272,6 +273,8 @@ function runSearch(query) {
   const value = query.trim();
   if (!value) return;
 
+  searchHistoryRequested = false;
+  elements.searchHistory.hidden = true;
   addSearchHistory(value);
   flushCloudData();
   if (looksLikeUrl(value)) {
@@ -1300,10 +1303,20 @@ elements.shortcutForm.addEventListener("submit", saveFromDialog);
 elements.deleteButton.addEventListener("click", deleteEditingShortcut);
 elements.exportButton.addEventListener("click", exportShortcuts);
 elements.importInput.addEventListener("change", importShortcuts);
-elements.searchInput.addEventListener("focus", renderSearchHistory);
-elements.searchInput.addEventListener("input", renderSearchHistory);
+elements.searchInput.addEventListener("pointerdown", () => {
+  searchHistoryRequested = true;
+});
+elements.searchInput.addEventListener("focus", () => {
+  if (searchHistoryRequested) renderSearchHistory();
+});
+elements.searchInput.addEventListener("click", renderSearchHistory);
+elements.searchInput.addEventListener("input", () => {
+  searchHistoryRequested = true;
+  renderSearchHistory();
+});
 elements.searchInput.addEventListener("blur", () => {
   window.setTimeout(() => {
+    searchHistoryRequested = false;
     elements.searchHistory.hidden = true;
   }, 160);
 });
