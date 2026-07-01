@@ -12,14 +12,14 @@ const DEFAULT_CATEGORY = "常用";
 
 const aiProviders = [
   { id: "local", name: "本机 Agent", mark: "PC", desc: "连接电脑里的 Agent 桥接服务" },
-  { id: "cloud", name: "云端模型", mark: "AI", desc: "通过 Cloudflare Worker 调用模型" },
+  { id: "cloud", name: "DeepSeek", mark: "DS", desc: "通过 Cloudflare Worker 调用 DeepSeek" },
   { id: "custom", name: "自定义接口", mark: "API", desc: "接入自己的 OpenAI 兼容服务" },
 ];
 
 const defaultAiConfig = {
   provider: "local",
   localUrl: "http://127.0.0.1:8765",
-  cloudModel: "gpt-4.1-mini",
+  cloudModel: "deepseek-chat",
   customEndpoint: "",
   permissionMode: "confirm",
 };

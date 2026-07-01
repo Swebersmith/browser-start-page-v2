@@ -273,12 +273,13 @@ async function handleAiChat(request, env) {
 
   const body = await request.json().catch(() => null);
   const messages = normalizeAiMessages(body?.messages);
-  const model = String(body?.model || env.OPENAI_MODEL || "gpt-4.1-mini").slice(0, 80);
+  const apiKey = env.DEEPSEEK_API_KEY || env.OPENAI_API_KEY;
+  const model = String(body?.model || env.DEEPSEEK_MODEL || env.OPENAI_MODEL || "deepseek-chat").slice(0, 80);
 
   if (body?.ping) {
     return json({
-      ok: Boolean(env.OPENAI_API_KEY),
-      message: env.OPENAI_API_KEY ? "云端模型密钥已配置。" : "Cloudflare Worker 还没有配置 OPENAI_API_KEY。",
+      ok: Boolean(apiKey),
+      message: apiKey ? "DeepSeek 密钥已配置。" : "Cloudflare Worker 还没有配置 DEEPSEEK_API_KEY。",
     });
   }
 
@@ -286,21 +287,21 @@ async function handleAiChat(request, env) {
     return json({ error: "EMPTY_MESSAGES", message: "消息不能为空。" }, { status: 400 });
   }
 
-  if (!env.OPENAI_API_KEY) {
+  if (!apiKey) {
     return json(
       {
         error: "AI_NOT_CONFIGURED",
-        message: "Cloudflare Worker 还没有配置 OPENAI_API_KEY。可以先使用本机 Agent 或自定义接口。",
+        message: "Cloudflare Worker 还没有配置 DEEPSEEK_API_KEY。可以先使用本机 Agent 或自定义接口。",
       },
       { status: 503 },
     );
   }
 
-  const baseUrl = String(env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/+$/, "");
+  const baseUrl = String(env.DEEPSEEK_BASE_URL || env.OPENAI_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, "");
   const response = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: {
-      authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      authorization: `Bearer ${apiKey}`,
       "content-type": "application/json",
     },
     body: JSON.stringify({
