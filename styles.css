@@ -368,8 +368,8 @@ select:focus-visible,
 }
 
 .weather-stage {
-  grid-template-columns: minmax(210px, 0.74fr) minmax(330px, 1fr) minmax(260px, 0.84fr);
-  align-items: center;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  align-items: stretch;
   z-index: 20;
   overflow: visible;
 }
@@ -427,6 +427,7 @@ select:focus-visible,
 
 .weather-time-card {
   align-self: stretch;
+  min-width: 0;
   padding: 18px;
   border: 3px solid var(--line);
   border-radius: 10px;
@@ -436,7 +437,7 @@ select:focus-visible,
 
 .weather-time-card h2 {
   color: var(--blue);
-  font-size: clamp(44px, 7vw, 86px);
+  font-size: clamp(42px, 6vw, 76px);
   line-height: 0.9;
 }
 
@@ -454,11 +455,12 @@ select:focus-visible,
   position: relative;
   z-index: 1;
   display: grid;
+  min-width: 0;
   min-height: 184px;
-  grid-template-columns: 104px minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 16px;
   align-items: center;
-  padding: 20px;
+  padding: 18px;
   border: 3px solid var(--line);
   border-radius: 10px;
   background: #fff;
@@ -467,8 +469,8 @@ select:focus-visible,
 
 .weather-icon {
   display: grid;
-  width: 104px;
-  height: 104px;
+  width: 92px;
+  height: 92px;
   place-items: center;
   border: 3px solid var(--line);
   border-radius: 42% 58% 48% 52%;
@@ -476,7 +478,7 @@ select:focus-visible,
     radial-gradient(circle at 68% 28%, #fff 0 12px, transparent 13px),
     var(--yellow);
   color: var(--red);
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 950;
   transform: rotate(-4deg);
 }
@@ -493,20 +495,24 @@ select:focus-visible,
 .weather-panel strong {
   display: block;
   color: var(--ink);
-  font-size: clamp(28px, 4vw, 48px);
+  font-size: clamp(28px, 3.6vw, 46px);
   line-height: 1.05;
+  overflow-wrap: anywhere;
 }
 
 .weather-panel span {
   display: block;
-  margin-top: 10px;
+  margin-top: 9px;
+  padding-right: 76px;
   color: var(--muted);
   font-size: 15px;
   font-weight: 800;
+  line-height: 1.35;
 }
 
 .weather-location {
   display: inline-block;
+  max-width: 100%;
   margin-top: 9px;
   padding: 5px 9px;
   border: 2px solid var(--line);
@@ -516,6 +522,7 @@ select:focus-visible,
   font-size: 12px;
   font-weight: 950;
   line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .weather-refresh {
@@ -540,6 +547,7 @@ select:focus-visible,
   position: relative;
   z-index: 6;
   display: grid;
+  min-width: 0;
   min-height: 184px;
   align-content: center;
   gap: 9px;
@@ -568,6 +576,7 @@ select:focus-visible,
   font-size: 14px;
   font-weight: 850;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .today-history-detail {
@@ -2146,6 +2155,37 @@ dialog[open] .dialog-card {
   .doodle-swirl,
   .doodle-pencil {
     display: none;
+  }
+}
+
+@media (min-width: 721px) and (max-width: 1120px) {
+  .character-stage {
+    padding: 16px;
+  }
+
+  .weather-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .weather-panel {
+    grid-template-columns: 82px minmax(0, 1fr);
+  }
+
+  .weather-icon {
+    width: 82px;
+    height: 82px;
+    font-size: 28px;
+  }
+
+  .weather-panel span {
+    padding-right: 0;
+  }
+
+  .weather-refresh {
+    position: static;
+    grid-column: 2;
+    justify-self: start;
+    margin-top: -2px;
   }
 }
 
