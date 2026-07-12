@@ -4,27 +4,9 @@ const WIDGET_KEY = "browser-launchpad-widgets-v1";
 const SYNC_KEY = "browser-launchpad-sync-key-v1";
 const SEARCH_HISTORY_KEY = "browser-launchpad-search-history-v1";
 const DARK_MODE_KEY = "browser-launchpad-dark-mode-v1";
-const AI_CONFIG_KEY = "browser-launchpad-ai-config-v1";
-const AI_MESSAGES_KEY = "browser-launchpad-ai-messages-v1";
 const MAX_SEARCH_HISTORY = 8;
 const ALL_CATEGORY = "全部";
 const DEFAULT_CATEGORY = "常用";
-
-const aiProviders = [
-  { id: "local", name: "本机 Agent", mark: "PC", desc: "连接电脑里的 Agent 桥接服务" },
-  { id: "cloud", name: "DeepSeek", mark: "DS", desc: "通过 Cloudflare Worker 调用 DeepSeek" },
-  { id: "custom", name: "自定义接口", mark: "API", desc: "接入自己的 OpenAI 兼容服务" },
-];
-
-const defaultAiConfig = {
-  provider: "local",
-  localUrl: "http://127.0.0.1:8765",
-  cloudModel: "deepseek-v4-flash",
-  customEndpoint: "",
-  permissionMode: "confirm",
-};
-
-const supportedCloudModels = ["deepseek-v4-flash", "deepseek-v4-pro"];
 
 const searchEngines = [
   { id: "google", name: "Google", mark: "G", url: "https://www.google.com/search?q=" },
@@ -150,31 +132,11 @@ const elements = {
   todayHistoryYear: document.querySelector("#todayHistoryYear"),
   todayHistoryText: document.querySelector("#todayHistoryText"),
   todayHistoryDetail: document.querySelector("#todayHistoryDetail"),
-  aiConsole: document.querySelector(".ai-console"),
-  aiStatusPill: document.querySelector("#aiStatusPill"),
-  aiProviderCards: document.querySelector("#aiProviderCards"),
-  aiMessages: document.querySelector("#aiMessages"),
-  aiChatForm: document.querySelector("#aiChatForm"),
-  aiChatInput: document.querySelector("#aiChatInput"),
-  aiConnectButton: document.querySelector("#aiConnectButton"),
-  aiSettingsButton: document.querySelector("#aiSettingsButton"),
-  aiQuickActions: document.querySelector(".ai-quick-actions"),
-  aiSettingsDialog: document.querySelector("#aiSettingsDialog"),
-  aiSettingsForm: document.querySelector("#aiSettingsForm"),
-  closeAiSettingsButton: document.querySelector("#closeAiSettingsButton"),
-  cancelAiSettingsButton: document.querySelector("#cancelAiSettingsButton"),
-  aiProviderSelect: document.querySelector("#aiProviderSelect"),
-  aiLocalUrl: document.querySelector("#aiLocalUrl"),
-  aiCloudModel: document.querySelector("#aiCloudModel"),
-  aiCustomEndpoint: document.querySelector("#aiCustomEndpoint"),
-  aiPermissionMode: document.querySelector("#aiPermissionMode"),
 };
 
 let shortcuts = loadShortcuts();
 let widgets = loadWidgets();
 let searchHistory = loadSearchHistory();
-let aiConfig = loadAiConfig();
-let aiMessages = loadAiMessages();
 let searchHistoryRequested = false;
 let selectedCategory = ALL_CATEGORY;
 let editingId = null;
@@ -186,7 +148,6 @@ let draggedShortcutId = null;
 let metadataLookupTimer = null;
 let metadataLookupController = null;
 let currentShortcutIconUrl = "";
-let aiRequestController = null;
 
 function normalizeShortcut(item, index = 0) {
   return {
@@ -255,287 +216,6 @@ function saveSearchHistory({ sync = true } = {}) {
   localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(searchHistory));
   renderSearchHistory();
   if (sync) scheduleCloudSave();
-}
-
-function loadAiConfig() {
-  const raw = localStorage.getItem(AI_CONFIG_KEY);
-  if (!raw) return { ...defaultAiConfig };
-
-  try {
-    const parsed = JSON.parse(raw);
-    const cloudModel = supportedCloudModels.includes(parsed.cloudModel)
-      ? parsed.cloudModel
-      : defaultAiConfig.cloudModel;
-    return {
-      ...defaultAiConfig,
-      ...parsed,
-      cloudModel,
-      provider: aiProviders.some((provider) => provider.id === parsed.provider) ? parsed.provider : defaultAiConfig.provider,
-    };
-  } catch {
-    return { ...defaultAiConfig };
-  }
-}
-
-function saveAiConfig() {
-  localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(aiConfig));
-}
-
-function loadAiMessages() {
-  const raw = localStorage.getItem(AI_MESSAGES_KEY);
-  if (!raw) {
-    return [
-      {
-        role: "assistant",
-        content: "选择一个 AI 通道后就可以开始聊天。本机 Agent 需要先启动你电脑里的桥接服务。",
-        time: Date.now(),
-      },
-    ];
-  }
-
-  try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? parsed
-          .filter((message) => ["user", "assistant", "system"].includes(message.role) && typeof message.content === "string")
-          .slice(-24)
-      : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveAiMessages() {
-  localStorage.setItem(AI_MESSAGES_KEY, JSON.stringify(aiMessages.slice(-24)));
-}
-
-function setAiStatus(message, tone = "idle") {
-  elements.aiStatusPill.textContent = message;
-  elements.aiStatusPill.dataset.tone = tone;
-}
-
-function getAiProvider() {
-  return aiProviders.find((provider) => provider.id === aiConfig.provider) || aiProviders[0];
-}
-
-function normalizeLocalAgentUrl(value) {
-  const trimmed = value.trim().replace(/\/+$/, "");
-  return trimmed || defaultAiConfig.localUrl;
-}
-
-function renderAiProviders() {
-  elements.aiProviderCards.innerHTML = "";
-
-  aiProviders.forEach((provider) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "ai-provider-card";
-    button.dataset.provider = provider.id;
-    button.classList.toggle("is-active", provider.id === aiConfig.provider);
-    button.innerHTML = `
-      <span>${provider.mark}</span>
-      <strong>${provider.name}</strong>
-      <small>${provider.desc}</small>
-    `;
-    button.addEventListener("click", () => {
-      aiConfig.provider = provider.id;
-      saveAiConfig();
-      renderAiProviders();
-      syncAiSettingsForm();
-      setAiStatus(provider.id === "local" ? "待连接" : "已选择", provider.id === "local" ? "idle" : "ok");
-    });
-    elements.aiProviderCards.append(button);
-  });
-}
-
-function renderAiMessages() {
-  elements.aiMessages.innerHTML = "";
-
-  aiMessages.slice(-24).forEach((message) => {
-    const item = document.createElement("article");
-    item.className = `ai-message ai-message-${message.role}`;
-
-    const role = document.createElement("strong");
-    role.textContent = message.role === "user" ? "你" : message.role === "system" ? "系统" : getAiProvider().name;
-
-    const content = document.createElement("p");
-    content.textContent = message.content;
-
-    item.append(role, content);
-    elements.aiMessages.append(item);
-  });
-
-  elements.aiMessages.scrollTop = elements.aiMessages.scrollHeight;
-}
-
-function addAiMessage(role, content) {
-  aiMessages = [...aiMessages, { role, content: String(content || "").trim(), time: Date.now() }].filter((message) => message.content).slice(-24);
-  saveAiMessages();
-  renderAiMessages();
-}
-
-function syncAiSettingsForm() {
-  elements.aiProviderSelect.value = aiConfig.provider;
-  elements.aiLocalUrl.value = aiConfig.localUrl;
-  elements.aiCloudModel.value = aiConfig.cloudModel;
-  elements.aiCustomEndpoint.value = aiConfig.customEndpoint;
-  elements.aiPermissionMode.value = aiConfig.permissionMode;
-}
-
-function openAiSettings() {
-  syncAiSettingsForm();
-  elements.aiSettingsDialog.showModal();
-  elements.aiProviderSelect.focus();
-}
-
-function closeAiSettings() {
-  elements.aiSettingsDialog.close();
-}
-
-function saveAiSettings(event) {
-  event.preventDefault();
-  const cloudModel = elements.aiCloudModel.value.trim();
-  aiConfig = {
-    provider: elements.aiProviderSelect.value,
-    localUrl: normalizeLocalAgentUrl(elements.aiLocalUrl.value),
-    cloudModel: supportedCloudModels.includes(cloudModel) ? cloudModel : defaultAiConfig.cloudModel,
-    customEndpoint: elements.aiCustomEndpoint.value.trim(),
-    permissionMode: elements.aiPermissionMode.value,
-  };
-  saveAiConfig();
-  renderAiProviders();
-  setAiStatus("设置已保存", "ok");
-  closeAiSettings();
-}
-
-async function fetchJsonWithTimeout(url, options = {}, timeoutMs = 18000) {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), timeoutMs);
-
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.message || data.error || "请求失败");
-    return data;
-  } finally {
-    window.clearTimeout(timeout);
-  }
-}
-
-async function testAiConnection() {
-  const provider = getAiProvider();
-  setAiStatus("连接中", "idle");
-  elements.aiConnectButton.disabled = true;
-
-  try {
-    if (provider.id === "local") {
-      const baseUrl = normalizeLocalAgentUrl(aiConfig.localUrl);
-      const data = await fetchJsonWithTimeout(`${baseUrl}/health`, { method: "GET" }, 5000);
-      setAiStatus("本机已连接", "ok");
-      addAiMessage("system", `本机 Agent 已连接：${data.name || data.status || baseUrl}`);
-      return;
-    }
-
-    if (provider.id === "cloud") {
-      const data = await fetchJsonWithTimeout("/api/ai/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ provider: "cloud", model: aiConfig.cloudModel, messages: [{ role: "user", content: "ping" }], ping: true }),
-      }, 8000);
-      setAiStatus(data.ok ? "云端可用" : "云端待配置", data.ok ? "ok" : "danger");
-      addAiMessage("system", data.message || "云端模型接口已响应。");
-      return;
-    }
-
-    if (!aiConfig.customEndpoint) throw new Error("请先填写自定义接口地址");
-    await fetchJsonWithTimeout(aiConfig.customEndpoint, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ messages: [{ role: "user", content: "ping" }], ping: true }),
-    }, 8000);
-    setAiStatus("接口可用", "ok");
-    addAiMessage("system", "自定义接口已响应。");
-  } catch (error) {
-    setAiStatus("连接失败", "danger");
-    addAiMessage("system", `连接失败：${error.message}`);
-  } finally {
-    elements.aiConnectButton.disabled = false;
-  }
-}
-
-async function sendAiMessage(event) {
-  event?.preventDefault();
-  const content = elements.aiChatInput.value.trim();
-  if (!content) return;
-
-  const provider = getAiProvider();
-  addAiMessage("user", content);
-  elements.aiChatInput.value = "";
-  elements.aiChatInput.disabled = true;
-  setAiStatus("思考中", "idle");
-
-  try {
-    const messages = aiMessages
-      .filter((message) => message.role === "user" || message.role === "assistant")
-      .slice(-12)
-      .map(({ role, content: messageContent }) => ({ role, content: messageContent }));
-    const payload = {
-      provider: provider.id,
-      model: aiConfig.cloudModel,
-      permissionMode: aiConfig.permissionMode,
-      messages,
-    };
-
-    let data;
-    if (provider.id === "local") {
-      const baseUrl = normalizeLocalAgentUrl(aiConfig.localUrl);
-      data = await fetchJsonWithTimeout(`${baseUrl}/chat`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      }, 60000);
-    } else if (provider.id === "custom") {
-      if (!aiConfig.customEndpoint) throw new Error("请先填写自定义接口地址");
-      data = await fetchJsonWithTimeout(aiConfig.customEndpoint, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      }, 60000);
-    } else {
-      data = await fetchJsonWithTimeout("/api/ai/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify(payload),
-      }, 60000);
-    }
-
-    const reply = data.reply || data.content || data.message || "已收到响应，但没有返回文本内容。";
-    addAiMessage("assistant", reply);
-    setAiStatus("已响应", "ok");
-  } catch (error) {
-    addAiMessage("system", `发送失败：${error.message}`);
-    setAiStatus("发送失败", "danger");
-  } finally {
-    elements.aiChatInput.disabled = false;
-    elements.aiChatInput.focus();
-  }
-}
-
-function useAiQuickPrompt(event) {
-  const button = event.target.closest("button[data-prompt]");
-  if (!button) return;
-  elements.aiChatInput.value = button.dataset.prompt || "";
-  elements.aiChatInput.focus();
-}
-
-function initAiConsole() {
-  renderAiProviders();
-  renderAiMessages();
-  syncAiSettingsForm();
-  setAiStatus(aiConfig.provider === "local" ? "待连接" : "已选择", "idle");
 }
 
 function addSearchHistory(query) {
@@ -1641,13 +1321,6 @@ elements.searchInput.addEventListener("blur", () => {
   }, 160);
 });
 elements.darkToggleButton.addEventListener("click", toggleDarkMode);
-elements.aiChatForm.addEventListener("submit", sendAiMessage);
-elements.aiConnectButton.addEventListener("click", testAiConnection);
-elements.aiSettingsButton.addEventListener("click", openAiSettings);
-elements.aiQuickActions.addEventListener("click", useAiQuickPrompt);
-elements.aiSettingsForm.addEventListener("submit", saveAiSettings);
-elements.closeAiSettingsButton.addEventListener("click", closeAiSettings);
-elements.cancelAiSettingsButton.addEventListener("click", closeAiSettings);
 elements.shortcutGrid.addEventListener("dragover", (event) => {
   if (!draggedShortcutId) return;
   event.preventDefault();
@@ -1682,5 +1355,4 @@ loadTodayHistory();
 renderEngines();
 render();
 renderSearchHistory();
-initAiConsole();
 initSync();

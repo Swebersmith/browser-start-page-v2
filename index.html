@@ -70,35 +70,6 @@
         <div class="quick-engines" id="engineButtons" aria-label="搜索引擎快捷切换"></div>
       </section>
 
-      <section class="ai-console" aria-label="AI 控制台">
-        <div class="ai-console-head">
-          <div>
-            <p>AI Console</p>
-            <h2>Agent 控制台</h2>
-          </div>
-          <span class="ai-status-pill" id="aiStatusPill" data-tone="idle">未连接</span>
-        </div>
-
-        <div class="ai-provider-grid" id="aiProviderCards" aria-label="AI 通道"></div>
-
-        <div class="ai-message-list" id="aiMessages" aria-live="polite"></div>
-
-        <div class="ai-quick-actions" aria-label="AI 快捷指令">
-          <button type="button" data-prompt="分析这个网页项目当前还能怎么优化">分析项目</button>
-          <button type="button" data-prompt="检查本机 Agent 是否在线，并总结可用能力">检查 Agent</button>
-          <button type="button" data-prompt="帮我规划下一次部署前需要验证的事项">部署检查</button>
-        </div>
-
-        <form class="ai-chat-form" id="aiChatForm">
-          <textarea id="aiChatInput" rows="3" maxlength="1200" placeholder="输入要交给 AI 或本机 Agent 的任务"></textarea>
-          <div class="ai-chat-actions">
-            <button type="button" id="aiConnectButton">连接测试</button>
-            <button type="button" id="aiSettingsButton">设置</button>
-            <button type="submit" class="primary-button">发送</button>
-          </div>
-        </form>
-      </section>
-
       <section class="toolbar" aria-label="快捷方式工具">
         <div class="tabs" id="categoryTabs"></div>
         <div class="actions">
@@ -234,49 +205,6 @@
           <button type="button" id="deleteWidgetButton" class="danger-button">删除</button>
           <span></span>
           <button type="button" id="cancelWidgetDialogButton">取消</button>
-          <button type="submit" class="primary-button">保存</button>
-        </div>
-      </form>
-    </dialog>
-
-    <dialog id="aiSettingsDialog">
-      <form method="dialog" class="dialog-card ai-settings-card" id="aiSettingsForm">
-        <div class="dialog-head">
-          <h2>AI 接入设置</h2>
-          <button class="icon-button" type="button" id="closeAiSettingsButton" aria-label="关闭">×</button>
-        </div>
-        <label>
-          默认通道
-          <select id="aiProviderSelect">
-            <option value="local">本机 Agent</option>
-            <option value="cloud">云端模型</option>
-            <option value="custom">自定义接口</option>
-          </select>
-        </label>
-        <label>
-          本机 Agent 地址
-          <input id="aiLocalUrl" type="url" placeholder="http://127.0.0.1:8765" />
-        </label>
-        <label>
-          DeepSeek 模型名称
-          <input id="aiCloudModel" type="text" maxlength="80" placeholder="deepseek-v4-flash 或 deepseek-v4-pro" />
-        </label>
-        <label>
-          自定义聊天接口
-          <input id="aiCustomEndpoint" type="url" placeholder="https://example.com/api/chat" />
-        </label>
-        <label>
-          权限模式
-          <select id="aiPermissionMode">
-            <option value="confirm">执行前确认</option>
-            <option value="readonly">只读聊天</option>
-            <option value="auto">允许自动执行</option>
-          </select>
-        </label>
-        <p class="ai-settings-note">本机 Agent 建议只监听 127.0.0.1，并使用自己的确认机制处理文件、命令和系统操作。</p>
-        <div class="dialog-actions">
-          <span></span>
-          <button type="button" id="cancelAiSettingsButton">取消</button>
           <button type="submit" class="primary-button">保存</button>
         </div>
       </form>
