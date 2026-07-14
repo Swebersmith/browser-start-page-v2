@@ -538,64 +538,140 @@ select:focus-visible,
   z-index: 6;
   display: grid;
   min-width: 0;
-  min-height: 184px;
-  align-content: center;
-  gap: 9px;
-  padding: 17px;
+  min-height: 250px;
+  align-content: start;
+  gap: 12px;
+  padding: 16px;
   border: 3px solid var(--line);
   border-radius: 10px;
   background: var(--cream);
   box-shadow: 5px 6px 0 rgba(31, 35, 40, 0.12);
 }
 
-.today-history-panel p {
+.today-history-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.today-history-panel .today-history-head p {
   margin: 0;
   color: var(--red);
   font-size: 12px;
   font-weight: 950;
 }
 
-.today-history-panel strong {
+.today-history-head > span {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  background: var(--sky);
+  color: var(--ink) !important;
+  font-size: 11px !important;
+  font-weight: 950 !important;
+  line-height: 1.15 !important;
+}
+
+.today-history-groups {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.history-group {
+  min-width: 0;
+  padding: 9px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.history-group h3 {
+  margin: 0 0 7px;
   color: var(--blue);
-  font-size: clamp(28px, 4vw, 44px);
-  line-height: 0.95;
-}
-
-.today-history-panel span {
-  color: var(--muted);
-  font-size: 14px;
-  font-weight: 850;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.today-history-detail {
-  position: absolute;
-  left: 16px;
-  right: 16px;
-  top: calc(100% + 10px);
-  z-index: 120;
-  padding: 12px 13px;
-  border: 3px solid var(--line);
-  border-radius: 10px;
-  background: var(--cream);
-  color: var(--ink);
-  box-shadow: 6px 7px 0 rgba(31, 35, 40, 0.16);
   font-size: 13px;
-  font-weight: 850;
-  line-height: 1.55;
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(-8px);
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
+  font-weight: 950;
+  line-height: 1.2;
 }
 
-.today-history-panel:hover .today-history-detail,
-.today-history-panel:focus-within .today-history-detail {
-  opacity: 1;
-  transform: translateY(0);
+.history-event-list {
+  display: grid;
+  min-width: 0;
+  gap: 6px;
+}
+
+.history-event {
+  min-width: 0;
+  border-bottom: 1px dashed rgba(31, 35, 40, 0.34);
+}
+
+.history-event:last-child {
+  border-bottom: 0;
+}
+
+.history-event summary {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 7px;
+  align-items: start;
+  padding: 3px 0 7px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.history-event summary::-webkit-details-marker {
+  display: none;
+}
+
+.history-event summary::after {
+  grid-column: 2;
+  width: 7px;
+  height: 7px;
+  margin-top: 1px;
+  content: "";
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 0.16s ease;
+}
+
+.history-event[open] summary::after {
+  transform: rotate(225deg) translate(-2px, -2px);
+}
+
+.history-event summary > span {
+  padding: 3px 5px;
+  border-radius: 4px;
+  background: var(--yellow);
+  color: var(--ink) !important;
+  font-size: 10px !important;
+  font-weight: 950 !important;
+  line-height: 1.15 !important;
+}
+
+.history-event summary > strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.32;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.history-event p {
+  margin: -2px 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.52;
+  overflow-wrap: anywhere;
 }
 
 .search-zone::before {
@@ -1868,6 +1944,14 @@ dialog[open] .dialog-card {
     justify-self: start;
   }
 
+  .today-history-panel {
+    min-height: 0;
+  }
+
+  .today-history-groups {
+    grid-template-columns: 1fr;
+  }
+
   .section-head {
     align-items: flex-start;
     flex-direction: column;
@@ -1936,6 +2020,27 @@ dialog[open] .dialog-card {
 :root[data-theme="dark"] .engine-menu,
 :root[data-theme="dark"] .search-history {
   background: var(--cream);
+}
+
+:root[data-theme="dark"] .history-group {
+  background: #141b23;
+}
+
+:root[data-theme="dark"] .today-history-head > span {
+  background: #25465c;
+  color: #f4f0df !important;
+}
+
+:root[data-theme="dark"] .history-event {
+  border-color: rgba(233, 222, 194, 0.35);
+}
+
+:root[data-theme="dark"] .history-event summary > strong {
+  color: #fff7d8;
+}
+
+:root[data-theme="dark"] .history-event summary > span {
+  color: #1f2328 !important;
 }
 
 :root[data-theme="dark"] .search-input-wrap input,

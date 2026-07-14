@@ -2,12 +2,30 @@ const MAX_PAYLOAD_BYTES = 250_000;
 const MAX_METADATA_BYTES = 96_000;
 
 const fallbackHistoryEvents = {
-  "01-01": { year: "1912", title: "中华民国临时政府在南京成立。", detail: "孙中山在南京就任临时大总统，中华民国临时政府成立。" },
-  "02-12": { year: "1912", title: "清帝退位，中国两千多年君主专制制度结束。", detail: "清帝溥仪颁布退位诏书，清朝统治结束。" },
-  "05-04": { year: "1919", title: "五四运动爆发，成为中国近现代史的重要节点。", detail: "北京学生举行示威，推动了反帝反封建爱国运动。" },
-  "07-01": { year: "1921", title: "中国共产党成立纪念日。", detail: "中国共产党第一次全国代表大会召开于 1921 年，7 月 1 日后来被定为建党纪念日。" },
-  "10-01": { year: "1949", title: "中华人民共和国中央人民政府成立。", detail: "中华人民共和国开国大典在北京天安门广场举行。" },
-  "12-13": { year: "2014", title: "中国设立南京大屠杀死难者国家公祭日。", detail: "中国首次举行南京大屠杀死难者国家公祭仪式。" },
+  "01-01": {
+    domestic: [{ year: "1912", title: "中华民国临时政府在南京成立", detail: "孙中山在南京就任临时大总统，中华民国临时政府成立。" }],
+    world: [{ year: "1804", title: "海地宣布独立", detail: "海地成为拉丁美洲和加勒比地区首个独立共和国。" }],
+  },
+  "02-12": {
+    domestic: [{ year: "1912", title: "清帝退位，清朝统治结束", detail: "溥仪颁布退位诏书，中国两千多年君主专制制度走向终结。" }],
+    world: [{ year: "1809", title: "亚伯拉罕·林肯出生", detail: "林肯后来成为美国第十六任总统。" }],
+  },
+  "05-04": {
+    domestic: [{ year: "1919", title: "五四运动爆发", detail: "北京学生举行示威，推动了反帝反封建爱国运动。" }],
+    world: [{ year: "1979", title: "撒切尔夫人出任英国首相", detail: "她成为英国首位女性首相。" }],
+  },
+  "07-01": {
+    domestic: [{ year: "1921", title: "中国共产党成立纪念日", detail: "中国共产党第一次全国代表大会召开于 1921 年，7 月 1 日后来被定为建党纪念日。" }],
+    world: [{ year: "1867", title: "加拿大联邦成立", detail: "加拿大自治领在这一天成立。" }],
+  },
+  "10-01": {
+    domestic: [{ year: "1949", title: "中华人民共和国中央人民政府成立", detail: "开国大典在北京天安门广场举行。" }],
+    world: [{ year: "1960", title: "尼日利亚宣布独立", detail: "尼日利亚结束英国殖民统治，成为独立国家。" }],
+  },
+  "12-13": {
+    domestic: [{ year: "2014", title: "中国设立南京大屠杀死难者国家公祭日", detail: "中国首次举行南京大屠杀死难者国家公祭仪式。" }],
+    world: [{ year: "1937", title: "南京大屠杀发生", detail: "这段历史提醒人们珍视和平与生命。" }],
+  },
 };
 
 const schemaSql =
@@ -176,13 +194,18 @@ function getTodayKeys(date = new Date()) {
 
 function getTodayFallback(date = new Date()) {
   const key = `${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-  return fallbackHistoryEvents[key] || { year: "今天", title: "历史太厚，小新先记下今天要好好生活。" };
+  return (
+    fallbackHistoryEvents[key] || {
+      domestic: [{ year: "国内", title: "国内历史资料等待在线源更新", detail: "请稍后刷新，系统会继续从国内可访问的数据源获取当天事件。" }],
+      world: [{ year: "国际", title: "国际历史资料等待在线源更新", detail: "请稍后刷新，系统会继续从国内可访问的数据源获取当天事件。" }],
+    }
+  );
 }
 
 function normalizeHistoryEvent(event) {
   if (!event || typeof event !== "object") return null;
   const title = event.title || event.event || event.desc || event.content || event.name || event.info;
-  const detail = event.desc || event.content || event.detail || event.description || title;
+  const detail = event.description || event.detail || event.desc || event.content || title;
   const year = event.year || event.date || event.time || "";
   if (!title) return null;
 
@@ -193,25 +216,59 @@ function normalizeHistoryEvent(event) {
   };
 }
 
-function findHistoryEvent(value, todayKeys = getTodayKeys()) {
-  if (!value) return null;
-  if (Array.isArray(value)) return value.map((item) => findHistoryEvent(item, todayKeys)).find(Boolean) || null;
-  if (typeof value !== "object") return null;
+function collectHistoryEvents(value, items = [], seen = new Set(), depth = 0) {
+  if (!value || depth > 5 || items.length >= 16) return items;
+
+  if (Array.isArray(value)) {
+    value.forEach((item) => collectHistoryEvents(item, items, seen, depth + 1));
+    return items;
+  }
+
+  if (typeof value === "string") {
+    const match = value.match(/(?:公元)?(\d{3,4})年?\s*[-：:，,]?\s*(.+)/);
+    if (match) {
+      const event = { year: match[1], title: match[2].trim().slice(0, 80), detail: value.trim().slice(0, 180) };
+      const key = `${event.year}|${event.title}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        items.push(event);
+      }
+    }
+    return items;
+  }
+
+  if (typeof value !== "object") return items;
 
   const direct = normalizeHistoryEvent(value);
-  if (direct) return direct;
-
-  for (const key of todayKeys) {
-    const match = findHistoryEvent(value[key], todayKeys);
-    if (match) return match;
+  if (direct) {
+    const key = `${direct.year}|${direct.title}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      items.push(direct);
+    }
   }
 
-  for (const key of ["data", "result", "list", "events", "content"]) {
-    const match = findHistoryEvent(value[key], todayKeys);
-    if (match) return match;
+  for (const key of ["data", "result", "list", "events", "content", "news", "items"]) {
+    if (value[key]) collectHistoryEvents(value[key], items, seen, depth + 1);
   }
 
-  return null;
+  return items;
+}
+
+function isDomesticHistoryEvent(event) {
+  return /中国|中华|我国|清朝|民国|北京|上海|南京|香港|澳门|台湾|长城|故宫|共产党|抗日|解放军|唐朝|宋朝|元朝|明朝|清廷|北洋|国民政府/.test(
+    `${event.title} ${event.detail}`,
+  );
+}
+
+function mergeHistoryGroups(events, fallback) {
+  const domestic = events.filter(isDomesticHistoryEvent).slice(0, 2);
+  const world = events.filter((event) => !isDomesticHistoryEvent(event)).slice(0, 2);
+
+  return {
+    domestic: domestic.length ? domestic : fallback.domestic,
+    world: world.length ? world : fallback.world,
+  };
 }
 
 async function handleTodayHistory(request) {
@@ -220,10 +277,14 @@ async function handleTodayHistory(request) {
   }
 
   const now = new Date();
-  const todayKeys = getTodayKeys(now);
+  const month = now.getMonth() + 1;
+  const day = now.getDate();
+  const fallback = getTodayFallback(now);
   const historyApis = [
+    "https://60s.viki.moe/v2/today-in-history",
     "https://api.oioweb.cn/api/common/history",
-    "https://api.vvhan.com/api/history?type=json",
+    "https://api.vvhan.com/api/lishi?type=json",
+    `https://api.52vmy.cn/api/wl/lishi?month=${month}&day=${day}&format=json`,
   ];
 
   for (const apiUrl of historyApis) {
@@ -239,8 +300,10 @@ async function handleTodayHistory(request) {
 
       const text = await readLimitedText(response, 80_000);
       const data = JSON.parse(text);
-      const picked = findHistoryEvent(data, todayKeys);
-      if (picked) return json({ ...picked, source: new URL(apiUrl).hostname });
+      const events = collectHistoryEvents(data);
+      if (events.length) {
+        return json({ ...mergeHistoryGroups(events, fallback), source: "domestic_api" });
+      }
     } catch {
       // Try the next domestic source, then fall back locally.
     } finally {
@@ -248,7 +311,7 @@ async function handleTodayHistory(request) {
     }
   }
 
-  return json({ ...getTodayFallback(now), source: "fallback" });
+  return json({ ...fallback, source: "fallback" });
 }
 
 async function handleSync(request, env, syncKey) {

@@ -63,12 +63,30 @@ const defaultWidgets = [
 ];
 
 const fallbackHistoryEvents = {
-  "01-01": { year: "1912", title: "中华民国临时政府在南京成立。", detail: "孙中山在南京就任临时大总统，中华民国临时政府成立。" },
-  "02-12": { year: "1912", title: "清帝退位，中国两千多年君主专制制度结束。", detail: "清帝溥仪颁布退位诏书，清朝统治结束。" },
-  "05-04": { year: "1919", title: "五四运动爆发，成为中国近现代史的重要节点。", detail: "北京学生举行示威，推动了反帝反封建爱国运动。" },
-  "07-01": { year: "1921", title: "中国共产党成立纪念日。", detail: "中国共产党第一次全国代表大会召开于 1921 年，7 月 1 日后来被定为建党纪念日。" },
-  "10-01": { year: "1949", title: "中华人民共和国中央人民政府成立。", detail: "中华人民共和国开国大典在北京天安门广场举行。" },
-  "12-13": { year: "2014", title: "中国设立南京大屠杀死难者国家公祭日。", detail: "中国首次举行南京大屠杀死难者国家公祭仪式。" },
+  "01-01": {
+    domestic: [{ year: "1912", title: "中华民国临时政府在南京成立", detail: "孙中山在南京就任临时大总统，中华民国临时政府成立。" }],
+    world: [{ year: "1804", title: "海地宣布独立", detail: "海地成为拉丁美洲和加勒比地区首个独立共和国。" }],
+  },
+  "02-12": {
+    domestic: [{ year: "1912", title: "清帝退位，清朝统治结束", detail: "溥仪颁布退位诏书，中国两千多年君主专制制度走向终结。" }],
+    world: [{ year: "1809", title: "亚伯拉罕·林肯出生", detail: "林肯后来成为美国第十六任总统。" }],
+  },
+  "05-04": {
+    domestic: [{ year: "1919", title: "五四运动爆发", detail: "北京学生举行示威，推动了反帝反封建爱国运动。" }],
+    world: [{ year: "1979", title: "撒切尔夫人出任英国首相", detail: "她成为英国首位女性首相。" }],
+  },
+  "07-01": {
+    domestic: [{ year: "1921", title: "中国共产党成立纪念日", detail: "中国共产党第一次全国代表大会召开于 1921 年，7 月 1 日后来被定为建党纪念日。" }],
+    world: [{ year: "1867", title: "加拿大联邦成立", detail: "加拿大自治领在这一天成立。" }],
+  },
+  "10-01": {
+    domestic: [{ year: "1949", title: "中华人民共和国中央人民政府成立", detail: "开国大典在北京天安门广场举行。" }],
+    world: [{ year: "1960", title: "尼日利亚宣布独立", detail: "尼日利亚结束英国殖民统治，成为独立国家。" }],
+  },
+  "12-13": {
+    domestic: [{ year: "2014", title: "中国设立南京大屠杀死难者国家公祭日", detail: "中国首次举行南京大屠杀死难者国家公祭仪式。" }],
+    world: [{ year: "1937", title: "南京大屠杀发生", detail: "这段历史提醒人们珍视和平与生命。" }],
+  },
 };
 
 const elements = {
@@ -129,9 +147,9 @@ const elements = {
   deleteWidgetButton: document.querySelector("#deleteWidgetButton"),
   darkToggleButton: document.querySelector("#darkToggleButton"),
   searchHistory: document.querySelector("#searchHistory"),
-  todayHistoryYear: document.querySelector("#todayHistoryYear"),
-  todayHistoryText: document.querySelector("#todayHistoryText"),
-  todayHistoryDetail: document.querySelector("#todayHistoryDetail"),
+  todayHistorySource: document.querySelector("#todayHistorySource"),
+  todayHistoryDomestic: document.querySelector("#todayHistoryDomestic"),
+  todayHistoryWorld: document.querySelector("#todayHistoryWorld"),
 };
 
 let shortcuts = loadShortcuts();
@@ -1178,17 +1196,67 @@ function deleteEditingWidget() {
 function getTodayHistoryFallback() {
   const now = new Date();
   const key = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  return fallbackHistoryEvents[key] || { year: "今天", title: "历史太厚，小新先记下今天要好好生活。" };
+  return (
+    fallbackHistoryEvents[key] || {
+      domestic: [{ year: "国内", title: "国内历史资料正在等待在线源更新", detail: "请稍后刷新，系统会继续从国内可访问的数据源获取当天事件。" }],
+      world: [{ year: "国际", title: "国际历史资料正在等待在线源更新", detail: "请稍后刷新，系统会继续从国内可访问的数据源获取当天事件。" }],
+    }
+  );
 }
 
-function setTodayHistory(event) {
-  elements.todayHistoryYear.textContent = event.year || "--";
-  elements.todayHistoryText.textContent = event.title || "今天没有找到特别记录。";
-  elements.todayHistoryDetail.textContent = event.detail || event.desc || event.title || "暂无更多介绍。";
+function normalizeHistoryGroup(events, fallback) {
+  const list = Array.isArray(events) ? events : [];
+  const normalized = list
+    .filter((event) => event && typeof event === "object")
+    .map((event) => ({
+      year: String(event.year || "今日").slice(0, 16),
+      title: String(event.title || event.event || "暂无事件").slice(0, 72),
+      detail: String(event.detail || event.desc || event.title || "暂无更多介绍。").slice(0, 220),
+    }))
+    .slice(0, 2);
+  return normalized.length ? normalized : fallback;
+}
+
+function renderHistoryGroup(container, events, fallback) {
+  container.innerHTML = "";
+  const items = normalizeHistoryGroup(events, fallback);
+
+  items.forEach((event, index) => {
+    const details = document.createElement("details");
+    details.className = "history-event";
+    details.open = index === 0;
+
+    const summary = document.createElement("summary");
+    const year = document.createElement("span");
+    const title = document.createElement("strong");
+    const detail = document.createElement("p");
+
+    year.textContent = event.year;
+    title.textContent = event.title;
+    detail.textContent = event.detail;
+
+    summary.append(year, title);
+    details.append(summary, detail);
+    container.append(details);
+  });
+}
+
+function setTodayHistory(data = {}) {
+  const fallback = getTodayHistoryFallback();
+  renderHistoryGroup(elements.todayHistoryDomestic, data.domestic, fallback.domestic);
+  renderHistoryGroup(elements.todayHistoryWorld, data.world, fallback.world);
+
+  const sourceLabels = {
+    fallback: "本地精选",
+    domestic_api: "国内可访问 API",
+    mixed: "国内 API + 精选",
+  };
+  elements.todayHistorySource.textContent = sourceLabels[data.source] || data.source || "本地精选";
 }
 
 async function loadTodayHistory() {
-  setTodayHistory({ year: "--", title: "正在翻小新家的旧相册..." });
+  const loading = [{ year: "…", title: "正在获取当天事件", detail: "请稍候。" }];
+  setTodayHistory({ domestic: loading, world: loading, source: "正在获取" });
 
   try {
     const response = await fetch("/api/today-history");

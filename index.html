@@ -113,12 +113,22 @@
           </div>
           <button id="weatherRefreshButton" class="weather-refresh" type="button">刷新</button>
         </div>
-        <div class="today-history-panel" aria-label="历史上的今天" tabindex="0">
-          <p>历史上的今天</p>
-          <strong id="todayHistoryYear">--</strong>
-          <span id="todayHistoryText">正在翻小新家的旧相册...</span>
-          <div class="today-history-detail" id="todayHistoryDetail" role="tooltip">正在翻小新家的旧相册...</div>
-        </div>
+        <section class="today-history-panel" aria-label="历史上的今天">
+          <div class="today-history-head">
+            <p>历史上的今天</p>
+            <span id="todayHistorySource">正在获取</span>
+          </div>
+          <div class="today-history-groups">
+            <section class="history-group" aria-labelledby="domesticHistoryTitle">
+              <h3 id="domesticHistoryTitle">国内</h3>
+              <div class="history-event-list" id="todayHistoryDomestic" aria-live="polite"></div>
+            </section>
+            <section class="history-group" aria-labelledby="worldHistoryTitle">
+              <h3 id="worldHistoryTitle">国际</h3>
+              <div class="history-event-list" id="todayHistoryWorld" aria-live="polite"></div>
+            </section>
+          </div>
+        </section>
       </section>
 
       <section class="widget-board" aria-label="自定义小组件">
