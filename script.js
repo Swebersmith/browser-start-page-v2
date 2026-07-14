@@ -89,6 +89,8 @@ const fallbackHistoryEvents = {
   },
 };
 
+const TODAY_HISTORY_PUBLIC_API = "https://60s.viki.moe/v2/today-in-history";
+
 const elements = {
   dateText: document.querySelector("#dateText"),
   stageTimeText: document.querySelector("#stageTimeText"),
@@ -1217,6 +1219,32 @@ function normalizeHistoryGroup(events, fallback) {
   return normalized.length ? normalized : fallback;
 }
 
+function isDomesticHistoryEvent(event) {
+  return /中国|中华|我国|清朝|民国|北京|上海|南京|香港|澳门|台湾|长城|故宫|共产党|抗日|解放军|唐朝|宋朝|元朝|明朝|清廷|北洋|国民政府/.test(
+    `${event.title} ${event.detail}`,
+  );
+}
+
+function groupPublicHistoryEvents(data) {
+  const events = Array.isArray(data?.data?.items)
+    ? data.data.items
+        .map((event) => ({
+          year: String(event.year || "今日").slice(0, 16),
+          title: String(event.title || "暂无事件").slice(0, 72),
+          detail: String(event.description || event.detail || event.title || "暂无更多介绍。").slice(0, 220),
+        }))
+        .filter((event) => event.title && event.title !== "暂无事件")
+    : [];
+
+  if (!events.length) throw new Error("public history unavailable");
+
+  return {
+    domestic: events.filter(isDomesticHistoryEvent).slice(0, 2),
+    world: events.filter((event) => !isDomesticHistoryEvent(event)).slice(0, 2),
+    source: "browser_api",
+  };
+}
+
 function renderHistoryGroup(container, events, fallback) {
   container.innerHTML = "";
   const items = normalizeHistoryGroup(events, fallback);
@@ -1247,8 +1275,9 @@ function setTodayHistory(data = {}) {
   renderHistoryGroup(elements.todayHistoryWorld, data.world, fallback.world);
 
   const sourceLabels = {
-    fallback: "本地精选",
+    fallback: "本地精选（在线不可用）",
     domestic_api: "国内可访问 API",
+    browser_api: "国内直连 API",
     mixed: "国内 API + 精选",
   };
   elements.todayHistorySource.textContent = sourceLabels[data.source] || data.source || "本地精选";
@@ -1262,9 +1291,20 @@ async function loadTodayHistory() {
     const response = await fetch("/api/today-history");
     if (!response.ok) throw new Error("history unavailable");
     const data = await response.json();
-    setTodayHistory(data);
+    if (data.source !== "fallback") {
+      setTodayHistory(data);
+      return;
+    }
   } catch {
-    setTodayHistory(getTodayHistoryFallback());
+    // A static host has no Worker route. Continue with the public CORS-enabled source.
+  }
+
+  try {
+    const response = await fetch(TODAY_HISTORY_PUBLIC_API, { cache: "no-store" });
+    if (!response.ok) throw new Error("public history unavailable");
+    setTodayHistory(groupPublicHistoryEvents(await response.json()));
+  } catch {
+    setTodayHistory({ ...getTodayHistoryFallback(), source: "fallback" });
   }
 }
 
