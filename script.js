@@ -102,6 +102,7 @@ const elements = {
   weatherRefreshButton: document.querySelector("#weatherRefreshButton"),
   searchZone: document.querySelector(".search-zone"),
   searchForm: document.querySelector("#searchForm"),
+  searchInputWrap: document.querySelector(".search-input-wrap"),
   searchInput: document.querySelector("#searchInput"),
   engineSelectWrap: document.querySelector(".engine-select"),
   engineSelect: document.querySelector("#engineSelect"),
@@ -289,12 +290,16 @@ function renderSearchHistory() {
   });
 }
 
+function hideSearchHistory() {
+  searchHistoryRequested = false;
+  elements.searchHistory.hidden = true;
+}
+
 function runSearch(query) {
   const value = query.trim();
   if (!value) return;
 
-  searchHistoryRequested = false;
-  elements.searchHistory.hidden = true;
+  hideSearchHistory();
   addSearchHistory(value);
   flushCloudData();
   if (looksLikeUrl(value)) {
@@ -1424,10 +1429,10 @@ elements.searchInput.addEventListener("input", () => {
 });
 elements.searchInput.addEventListener("blur", () => {
   window.setTimeout(() => {
-    searchHistoryRequested = false;
-    elements.searchHistory.hidden = true;
+    hideSearchHistory();
   }, 160);
 });
+elements.searchInputWrap.addEventListener("mouseleave", hideSearchHistory);
 elements.darkToggleButton.addEventListener("click", toggleDarkMode);
 elements.shortcutGrid.addEventListener("dragover", (event) => {
   if (!draggedShortcutId) return;
