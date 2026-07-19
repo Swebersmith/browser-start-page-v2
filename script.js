@@ -159,6 +159,7 @@ let shortcuts = loadShortcuts();
 let widgets = loadWidgets();
 let searchHistory = loadSearchHistory();
 let searchHistoryRequested = false;
+let searchHistoryHideTimer = null;
 let selectedCategory = ALL_CATEGORY;
 let editingId = null;
 let editingWidgetId = null;
@@ -291,8 +292,20 @@ function renderSearchHistory() {
 }
 
 function hideSearchHistory() {
+  window.clearTimeout(searchHistoryHideTimer);
+  searchHistoryHideTimer = null;
   searchHistoryRequested = false;
   elements.searchHistory.hidden = true;
+}
+
+function cancelSearchHistoryHide() {
+  window.clearTimeout(searchHistoryHideTimer);
+  searchHistoryHideTimer = null;
+}
+
+function scheduleSearchHistoryHide() {
+  cancelSearchHistoryHide();
+  searchHistoryHideTimer = window.setTimeout(hideSearchHistory, 180);
 }
 
 function runSearch(query) {
@@ -1428,11 +1441,12 @@ elements.searchInput.addEventListener("input", () => {
   renderSearchHistory();
 });
 elements.searchInput.addEventListener("blur", () => {
-  window.setTimeout(() => {
-    hideSearchHistory();
-  }, 160);
+  scheduleSearchHistoryHide();
 });
-elements.searchInputWrap.addEventListener("mouseleave", hideSearchHistory);
+elements.searchInputWrap.addEventListener("mouseenter", cancelSearchHistoryHide);
+elements.searchInputWrap.addEventListener("mouseleave", scheduleSearchHistoryHide);
+elements.searchHistory.addEventListener("mouseenter", cancelSearchHistoryHide);
+elements.searchHistory.addEventListener("mouseleave", scheduleSearchHistoryHide);
 elements.darkToggleButton.addEventListener("click", toggleDarkMode);
 elements.shortcutGrid.addEventListener("dragover", (event) => {
   if (!draggedShortcutId) return;
