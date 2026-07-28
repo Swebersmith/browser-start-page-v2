@@ -132,6 +132,7 @@ const elements = {
   exportButton: document.querySelector("#exportButton"),
   importInput: document.querySelector("#importInput"),
   syncKeyInput: document.querySelector("#syncKeyInput"),
+  syncKeyVisibleToggle: document.querySelector("#syncKeyVisibleToggle"),
   syncEnableButton: document.querySelector("#syncEnableButton"),
   syncPullButton: document.querySelector("#syncPullButton"),
   syncStatus: document.querySelector("#syncStatus"),
@@ -1467,6 +1468,9 @@ elements.shortcutGrid.addEventListener("drop", (event) => {
 });
 elements.syncEnableButton.addEventListener("click", () => pullCloudData({ createIfMissing: true }));
 elements.syncPullButton.addEventListener("click", () => pullCloudData());
+elements.syncKeyVisibleToggle.addEventListener("change", () => {
+  elements.syncKeyInput.type = elements.syncKeyVisibleToggle.checked ? "text" : "password";
+});
 elements.addWidgetButton.addEventListener("click", () => openWidgetDialog());
 elements.closeWidgetDialogButton.addEventListener("click", closeWidgetDialog);
 elements.cancelWidgetDialogButton.addEventListener("click", closeWidgetDialog);

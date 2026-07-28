@@ -88,9 +88,13 @@
       <section class="shortcut-grid" id="shortcutGrid" aria-label="快捷方式"></section>
 
       <section class="sync-panel" aria-label="多设备同步">
-        <label>
+        <label class="sync-key-field">
           <span>同步码</span>
           <input id="syncKeyInput" type="password" autocomplete="off" maxlength="80" placeholder="输入同一个同步码" />
+        </label>
+        <label class="sync-visibility-toggle">
+          <input id="syncKeyVisibleToggle" type="checkbox" />
+          <span>显示同步码</span>
         </label>
         <button type="button" id="syncEnableButton">启用同步</button>
         <button type="button" id="syncPullButton">拉取云端</button>
