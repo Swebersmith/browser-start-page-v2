@@ -330,12 +330,14 @@ select:focus-visible,
 
 .search-zone {
   position: relative;
-  z-index: 5;
+  z-index: 30;
+  isolation: isolate;
   margin-bottom: 14px;
 }
 
 .search-zone.is-menu-open,
-.search-zone:has(.engine-select.is-open) {
+.search-zone:has(.engine-select.is-open),
+.search-zone:has(.search-history:not([hidden])) {
   z-index: 80;
 }
 
@@ -935,7 +937,7 @@ select:focus-visible,
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  z-index: 90;
+  z-index: 110;
   display: grid;
   width: 100%;
   gap: 7px;
