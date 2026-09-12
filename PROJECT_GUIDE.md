@@ -128,11 +128,41 @@ CREATE TABLE IF NOT EXISTS sync_profiles (
 ```json
 {
   "shortcuts": [],
-  "widgets": []
+  "widgets": [],
+  "searchHistory": [],
+  "siteName": "小新风快捷首页",
+  "defaultCategory": "常用",
+  "engines": []
 }
 ```
 
+> ⚠️ `src/worker.js` 的 `handleSync` 在写入前会**重建**这份 JSON（见 `buildSyncPayload`）。
+> 之前它只写回 `shortcuts` / `widgets` / `searchHistory`，导致前端新增的站名等字段
+> 发了也存不进 D1。**以后往同步里加字段，必须同时改 `buildSyncPayload` 和
+> `isValidPayload`**，只改前端是没用的。
+
 同步码相当于这份数据的简单密码。不同设备输入同一个同步码，就读写同一条 D1 记录。
+
+## AI 整理快捷方式
+
+入口在快捷方式工具条的「AI 整理」按钮，默认接 DeepSeek。
+
+- 浏览器直连大模型接口基本都会被 CORS 挡掉（DeepSeek 同样如此），
+  所以请求走本站 Worker 的 `POST /api/ai` 代为转发；本地直接打开 `index.html`
+  时没有 Worker，会自动退回浏览器直连（需要接口本身允许跨域）。
+- `/api/ai` 只做透传，**不保存 API Key**；Key 存在浏览器 localStorage
+  （`browser-launchpad-ai-config-v1`），**不参与同步**。
+- 接口地址、模型名、Key 都可以在弹窗的「模型设置」里改，任何 OpenAI 兼容接口都行。
+- Worker 侧有一层 SSRF 防护：只允许公开的 https 地址，内网/回环地址会被拒。
+
+## 偏好设置
+
+页面底部「偏好设置」卡片里可以改：
+
+- **站名**：即浏览器标签页标题（`document.title`），会跟随同步码同步。
+- **默认分组**：进入页面时默认选中哪个快捷方式分组；分组被删掉后自动回退到「全部」。
+- **搜索引擎**：自定义搜索引擎（名称 / 图标文字 / 搜索地址），会追加到搜索框
+  左侧的切换菜单里，也会同步。
 
 ## 同步排错
 
@@ -241,3 +271,33 @@ node --check script.js
 node --check src/worker.js
 npm.cmd run build
 ```
+
+### ⚠️ 不要用 Windows PowerShell 5.1 读写这些源文件
+
+`styles.css` 曾经被写成双重编码（UTF-8 被当成 GBK 解码后又存回 UTF-8），
+原因是这类命令：
+
+```powershell
+# 危险：PS 5.1 的 Get-Content 对无 BOM 的 UTF-8 文件会按系统 ANSI(GBK) 解码
+$c = Get-Content styles.css -Raw
+$c = $c -replace 'aaa', 'bbb'
+[System.IO.File]::WriteAllText('styles.css', $c, (New-Object System.Text.UTF8Encoding($false)))
+```
+
+中文字符会被毁掉（虽然 CSS 注释坏掉不影响渲染，但排查起来很费时间）。
+
+安全做法：
+
+- 用 VS Code / 编辑器改；
+- 或写 Node 脚本（`readFileSync` / `writeFileSync` 默认就是 UTF-8）；
+- 必须用 PowerShell 时，显式指定编码：
+  `Get-Content -Encoding UTF8` + `Set-Content -Encoding UTF8`，
+  并且**不要**在任何环节用默认编码。
+
+### 加同步字段的检查清单
+
+1. `script.js` 的 `getSyncPayload()` 里加字段；
+2. `script.js` 的 `applyRemotePayload()` 里读取并落地到 localStorage；
+3. `src/worker.js` 的 `buildSyncPayload()` 里加字段（**漏了这步等于没同步**）；
+4. `src/worker.js` 的 `isValidPayload()` 里放行该字段类型；
+5. 跑一次 `node --check` 并实际验证一次拉取/写回。

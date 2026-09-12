@@ -1,11 +1,12 @@
 /* ==========================================================================
-   灏忔柊椋庡揩鎹烽椤?路 娑叉€佺幓鐠冧富棰?   浣庨ケ鍜屽皬鏂拌壊娓愬彉 + 缂撴參娴佸姩鍏夋枒 + 缁熶竴鐜荤拑鍗＄墖
+   小新风快捷首页 · 液态玻璃主题
+   低饱和小新色渐变 + 缓慢流动光斑 + 统一玻璃卡片
    ========================================================================== */
 
 :root {
   color-scheme: light;
 
-  /* 浣庨ケ鍜屽皬鏂拌壊 */
+  /* 低饱和小新色 */
   --coral: #e0866f;
   --coral-deep: #cf6a52;
   --butter: #edd9a3;
@@ -22,16 +23,16 @@
 
   --line: rgba(59, 57, 54, 0.1);
 
-  /* 鐜荤拑閰嶆柟 */
+  /* 玻璃配方 */
   --glass-bg: linear-gradient(142deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.4));
   --glass-bg-soft: linear-gradient(142deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.3));
-  /* 涓嬫媺鑿滃崟鐢ㄨ繎瀹炲績搴曪細鐖剁骇涔熸湁 backdrop-filter锛屽瓙绾фā绯婃嬁涓嶅埌鍗＄墖澶栫殑鑳屾櫙 */
+  /* 下拉菜单用近实心底：父级也有 backdrop-filter，子级模糊拿不到卡片外的背景 */
   --menu-bg: rgba(253, 250, 244, 0.97);
   --menu-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 58%);
-  /* 绉诲姩绔€ц兘闄嶇骇鐢ㄧ殑涓嶉€忔槑鏇夸唬鑹?*/
+  /* 移动端性能降级用的不透明替代色 */
   --glass-solid: linear-gradient(142deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.76));
   --glass-solid-soft: linear-gradient(142deg, rgba(255, 255, 255, 0.91), rgba(255, 255, 255, 0.72));
-  /* 灏忓厓浠剁敤鐨勩€屾棤妯＄硦鐜荤拑銆嶏細鐪佹帀涓€娆?background 閲囨牱锛岃鎰熷嚑涔庝竴鑷?*/
+  /* 小元件用的「无模糊玻璃」：省掉一次 background 采样，观感几乎一致 */
   --glass-flat: linear-gradient(142deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.52));
   --hero-solid:
     linear-gradient(142deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.84)),
@@ -106,7 +107,7 @@
     0 24px 56px rgba(0, 0, 0, 0.44);
 }
 
-/* ---------- 鍩虹 ---------- */
+/* ---------- 基础 ---------- */
 
 * {
   box-sizing: border-box;
@@ -114,7 +115,7 @@
 
 html {
   min-height: 100%;
-  /* 鍘绘帀绉诲姩绔偣鍑绘椂绯荤粺榛樿鐨勮摑鑹?鐏拌壊楂樹寒鏂瑰潡 */
+  /* 去掉移动端点击时系统默认的蓝色/灰色高亮方块 */
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
@@ -145,7 +146,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---------- 鑳屾櫙锛氱紦鎱㈡祦鍔ㄥ厜鏂?---------- */
+/* ---------- 背景：缓慢流动光斑 ---------- */
 
 .aurora-layer {
   position: fixed;
@@ -153,8 +154,8 @@ body {
   z-index: -2;
   overflow: hidden;
   pointer-events: none;
-  /* 涓嶅啀鐢?filter: blur()锛歳adial-gradient 鏈韩鐨勬煍杈瑰凡缁忓鐢紝
-     鑰屼竴灞傝鐩栧叏灞忕殑 72px 妯＄硦鍦ㄧЩ鍔ㄧ姣忓抚閮借閲嶇畻锛屼唬浠锋瀬楂?*/
+  /* 不再用 filter: blur()：radial-gradient 本身的柔边已经够用，
+     而一层覆盖全屏的 72px 模糊在移动端每帧都要重算，代价极高 */
 }
 
 .aurora {
@@ -289,14 +290,14 @@ body {
   }
 }
 
-/* ---------- 閫氱敤鎺т欢 ---------- */
+/* ---------- 通用控件 ---------- */
 
 button,
 input,
 select,
 textarea {
   font: inherit;
-  /* 娑堥櫎绉诲姩绔?300ms 鍙屽嚮缂╂斁寤惰繜 */
+  /* 消除移动端 300ms 双击缩放延迟 */
   touch-action: manipulation;
 }
 
@@ -312,7 +313,7 @@ button {
   cursor: pointer;
 }
 
-/* 鍙湪閿洏鎿嶄綔鏃舵樉绀虹劍鐐圭幆锛氶紶鏍?瑙︽懜鐐瑰嚮涓嶅啀鍐掑嚭鏂瑰潡 */
+/* 只在键盘操作时显示焦点环：鼠标/触摸点击不再冒出方块 */
 :focus {
   outline: none;
 }
@@ -323,7 +324,7 @@ button {
   outline-offset: 2px;
 }
 
-/* 鎵€鏈夌幓鐠冨崱鐗囧叡鐢ㄤ竴浠介厤鏂?*/
+/* 所有玻璃卡片共用一份配方 */
 .glass-card,
 .search-zone,
 .widget-card,
@@ -336,7 +337,7 @@ button {
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.7);
 }
 
-/* 鍗＄墖椤堕儴涓€閬撻珮鍏?*/
+/* 卡片顶部一道高光 */
 .glass-card::before,
 .search-zone::before,
 .widget-card::before {
@@ -374,7 +375,7 @@ button {
   border: 0;
 }
 
-/* ---------- 鏆楄壊妯″紡鎸夐挳 ---------- */
+/* ---------- 暗色模式按钮 ---------- */
 
 .dark-toggle {
   position: fixed;
@@ -401,7 +402,7 @@ button {
   transform: translateY(-2px) scale(1.04);
 }
 
-/* ---------- 椤甸潰楠ㄦ灦 ---------- */
+/* ---------- 页面骨架 ---------- */
 
 .shell {
   position: relative;
@@ -414,7 +415,7 @@ button {
   animation: page-enter 0.6s var(--ease-soft) both;
 }
 
-/* ---------- 椤堕儴锛氭棩鏈?+ 涓€鍙ユ枃妗?---------- */
+/* ---------- 顶部：日期 + 一句文案 ---------- */
 
 .topbar {
   order: 1;
@@ -422,29 +423,94 @@ button {
   text-align: center;
 }
 
-/* 绔欏悕鍏ュ彛锛? 娴忚鍣ㄦ爣绛鹃〉鏍囬锛?*/
-.site-name {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  margin-bottom: 14px;
-  padding: 5px 14px;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-pill);
-  background: var(--glass-flat);
-  box-shadow: var(--glass-inner);
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  transition:
-    transform 0.2s var(--ease-soft),
-    color 0.2s ease;
+/* ---------- 底部偏好设置 ---------- */
+
+.settings-panel {
+  order: 7;
+  display: grid;
+  gap: 0;
+  margin: 22px 0 0;
+  padding: 18px 20px 8px;
+  border-radius: 22px;
 }
 
-.site-name:hover {
-  transform: translateY(-1px);
+.settings-head p {
+  margin: 0;
+  color: var(--coral-deep);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.settings-head h2 {
+  margin: 6px 0 10px;
+  color: var(--ink-strong);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line);
+}
+
+.settings-label {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settings-value {
+  display: inline-flex;
+  min-width: 0;
+  max-width: min(72%, 420px);
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-pill);
+  padding: 0 14px;
+  background: var(--glass-flat);
+  box-shadow: var(--glass-inner);
   color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  transition:
+    transform 0.2s var(--ease-soft),
+    background-color 0.2s ease;
+}
+
+.settings-value > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-value:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+:root[data-theme="dark"] .settings-value:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.settings-row select {
+  min-width: 150px;
+  min-height: 34px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 0 10px;
+  background: var(--glass-flat);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .site-name-pen {
@@ -452,7 +518,125 @@ button {
   opacity: 0.65;
 }
 
-/* 鏃ユ湡 + 鏃堕棿 */
+/* ---------- 搜索引擎管理 ---------- */
+
+.engine-rows {
+  display: grid;
+  gap: 10px;
+}
+
+.engine-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1.9fr) 34px;
+  gap: 8px;
+  align-items: center;
+}
+
+.engine-row input {
+  min-height: 38px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 0 10px;
+  background: rgba(255, 255, 255, 0.55);
+  color: var(--ink);
+  font-size: 13px;
+  outline: none;
+}
+
+:root[data-theme="dark"] .engine-row input {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.engine-row input:focus {
+  box-shadow: 0 0 0 2px rgba(166, 201, 222, 0.5);
+}
+
+.engine-row-remove {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  padding: 0;
+  background: var(--glass-flat);
+  color: var(--coral-deep);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.ghost-button {
+  justify-self: start;
+  min-height: 34px;
+  border: 1px dashed var(--glass-edge);
+  border-radius: var(--radius-pill);
+  padding: 0 14px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.ghost-button:hover {
+  transform: none;
+  color: var(--ink);
+}
+
+/* ---------- AI 整理 ---------- */
+
+.ai-settings {
+  padding: 10px 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.34);
+}
+
+:root[data-theme="dark"] .ai-settings {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ai-settings summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.ai-settings-body {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.ai-status {
+  min-height: 18px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.ai-result {
+  max-height: 190px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.42);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+:root[data-theme="dark"] .ai-result {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* 日期 + 时间 */
 .clock-line {
   display: flex;
   flex-wrap: wrap;
@@ -478,7 +662,7 @@ button {
   line-height: 1;
 }
 
-/* 姣忔棩鍙拌瘝 */
+/* 每日台词 */
 .daily-quote {
   max-width: 640px;
   margin: 0 auto;
@@ -527,7 +711,7 @@ button {
   line-height: 1.45;
 }
 
-/* ---------- 鏍稿績锛氭悳绱㈢幓鐠冨崱 ---------- */
+/* ---------- 核心：搜索玻璃卡 ---------- */
 
 .search-zone {
   order: 2;
@@ -535,7 +719,7 @@ button {
   margin: 46px 0 20px;
   padding: 26px 20px 16px;
   border-radius: 30px;
-  /* 涓昏鍗★細鐜荤拑鏇村帤锛屽甫涓€灞傚皬鏂拌壊 */
+  /* 主角卡：玻璃更厚，带一层小新色 */
   border-color: rgba(255, 255, 255, 0.9);
   background:
     linear-gradient(142deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.54)),
@@ -557,7 +741,7 @@ button {
     linear-gradient(118deg, rgba(203, 181, 120, 0.14), rgba(123, 163, 189, 0.18));
 }
 
-/* 鑱氱劍鏃惰竟缂樺厜鍔犲己 + 杞诲井娑叉€佹祦鍔?*/
+/* 聚焦时边缘光加强 + 轻微液态流动 */
 .search-zone:focus-within {
   border-color: rgba(255, 255, 255, 0.95);
   box-shadow: var(--focus-glow), var(--glass-inner);
@@ -602,7 +786,7 @@ button {
   }
 }
 
-/* 鏄ユ棩閮ㄩ槻鍗槦锛氳洞鍦ㄦ悳绱㈠崱涓婃部 */
+/* 春日部防卫队：趴在搜索卡上沿 */
 .crew-strip {
   position: absolute;
   top: 0;
@@ -650,7 +834,7 @@ button {
   object-fit: cover;
 }
 
-/* 楂樹綆閿欒惤锛屽儚鐪熺殑瓒村湪涓婇潰 */
+/* 高低错落，像真的趴在上面 */
 .crew-shinnosuke {
   transform: translateY(3px);
 }
@@ -692,7 +876,7 @@ button {
   }
 }
 
-/* 灏忕櫧鐖嵃 */
+/* 小白爪印 */
 .paw-mark {
   position: absolute;
   top: -12px;
@@ -735,7 +919,7 @@ button {
   gap: 10px;
 }
 
-/* 寮曟搸閫夋嫨 */
+/* 引擎选择 */
 .engine-select {
   position: relative;
   min-width: 0;
@@ -941,7 +1125,7 @@ button {
   background: rgba(255, 255, 255, 0.14);
 }
 
-/* 鎼滅储杈撳叆 */
+/* 搜索输入 */
 .search-input-wrap {
   position: relative;
   display: flex;
@@ -1074,7 +1258,7 @@ button {
   transform: translateY(0) scale(0.99);
 }
 
-/* 蹇嵎鍒囨崲寮曟搸 */
+/* 快捷切换引擎 */
 .quick-engines {
   position: relative;
   z-index: 2;
@@ -1195,7 +1379,7 @@ button {
   background: linear-gradient(140deg, #3d444d, #24292f);
 }
 
-/* 鎼滅储鍘嗗彶 */
+/* 搜索历史 */
 .search-history {
   position: absolute;
   top: calc(100% + 10px);
@@ -1252,7 +1436,7 @@ button {
   color: var(--coral-deep);
 }
 
-/* ---------- 宸ュ叿鏉?---------- */
+/* ---------- 工具栏 ---------- */
 
 .toolbar {
   order: 3;
@@ -1289,7 +1473,7 @@ button {
   display: none;
 }
 
-/* ---------- 蹇嵎鏂瑰紡锛氬皬灏哄鐜荤拑鑳跺泭 ---------- */
+/* ---------- 快捷方式：小尺寸玻璃胶囊 ---------- */
 
 .shortcut-grid {
   order: 4;
@@ -1309,7 +1493,8 @@ button {
   min-height: 74px;
   border: 1px solid var(--glass-border);
   border-radius: 20px;
-  /* 蹇嵎鏂瑰紡鏁伴噺鏈€澶氾紝鍘绘帀 backdrop-filter锛?     鑳屾櫙鍏夋枒涓€鐩村湪鍔紝妯＄硦浼氳閫愬抚閲嶇畻锛岃€岃繖閲屽嚑涔庣湅涓嶅嚭宸埆 */
+  /* 快捷方式数量最多，去掉 backdrop-filter：
+     背景光斑一直在动，模糊会被逐帧重算，而这里几乎看不出差别 */
   background: var(--glass-flat);
   box-shadow: var(--glass-shadow), var(--glass-inner);
   overflow: hidden;
@@ -1319,7 +1504,7 @@ button {
     box-shadow 0.26s var(--ease-soft);
 }
 
-/* 楂樺厜鎵繃 */
+/* 高光扫过 */
 .shortcut-card::after {
   position: absolute;
   inset: 0;
@@ -1508,7 +1693,7 @@ button {
   opacity: 1;
 }
 
-/* ---------- 灏忕粍浠?---------- */
+/* ---------- 小组件 ---------- */
 
 .widget-board {
   order: 5;
@@ -1630,7 +1815,7 @@ button {
   opacity: 1;
 }
 
-/* ---------- 搴曢儴淇℃伅鍖猴細澶╂皵 + 鏃ф棩鍘?---------- */
+/* ---------- 底部信息区：天气 + 旧日历 ---------- */
 
 .weather-stage {
   order: 6;
@@ -1649,25 +1834,57 @@ button {
   padding: 20px;
 }
 
-/* 澶╂皵 */
+/* 天气 */
 .weather-panel {
   display: grid;
-  align-content: start;
+  /* 主体占满剩余高度，指标与刷新按钮贴在下面，避免卡片下方留一大片空白 */
+  grid-template-rows: 1fr auto auto;
   gap: 14px;
   min-height: 208px;
 }
 
 .weather-body {
   display: grid;
-  grid-template-columns: 74px minmax(0, 1fr);
-  gap: 16px;
+  align-self: center;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 18px;
   align-items: center;
+}
+
+.weather-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.weather-metrics div {
+  min-width: 0;
+}
+
+.weather-metrics dt {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.weather-metrics dd {
+  margin: 5px 0 0;
+  color: var(--ink-strong);
+  font-size: 17px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
 }
 
 .weather-icon {
   display: grid;
-  width: 74px;
-  height: 74px;
+  width: 92px;
+  height: 92px;
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 26px;
@@ -1735,7 +1952,7 @@ button {
   opacity: 0.6;
 }
 
-/* 鏃ф棩鍘?*/
+/* 旧日历 */
 .today-history-panel {
   display: grid;
   align-content: start;
@@ -1869,7 +2086,7 @@ button {
   overflow-wrap: anywhere;
 }
 
-/* ---------- 楠ㄦ灦灞?---------- */
+/* ---------- 骨架屏 ---------- */
 
 .skeleton {
   display: none;
@@ -1899,9 +2116,9 @@ button {
 }
 
 .skel-round {
-  width: 74px;
-  height: 74px;
-  border-radius: 26px;
+  width: 92px;
+  height: 92px;
+  border-radius: 30px;
   grid-row: span 4;
 }
 
@@ -1944,8 +2161,8 @@ button {
 }
 
 .weather-skeleton {
-  grid-template-columns: 74px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: 18px;
   align-items: center;
 }
 
@@ -1953,7 +2170,7 @@ button {
   gap: 6px;
 }
 
-/* 鍔犺浇涓細闅愯棌鐪熷疄鍐呭锛屾樉绀洪鏋?*/
+/* 加载中：隐藏真实内容，显示骨架 */
 .weather-panel.is-loading .weather-body,
 .today-history-panel.is-loading .today-history-groups {
   display: none;
@@ -1964,10 +2181,10 @@ button {
   display: grid;
 }
 
-/* ---------- 鍚屾闈㈡澘 ---------- */
+/* ---------- 同步面板 ---------- */
 
 .sync-panel {
-  order: 7;
+  order: 8;
   display: flex;
   width: 100%;
   align-items: center;
@@ -2045,7 +2262,7 @@ button {
   line-height: 1.55;
 }
 
-/* 鏈惎鐢ㄥ悓姝ワ細鏌斿拰锛屼笉鐢ㄨ鍛婅壊 */
+/* 未启用同步：柔和，不用警告色 */
 .sync-panel p[data-tone="neutral"] {
   color: var(--muted);
 }
@@ -2062,7 +2279,7 @@ button {
   color: var(--coral-deep);
 }
 
-/* ---------- 寮圭獥 ---------- */
+/* ---------- 弹窗 ---------- */
 
 dialog {
   width: min(440px, calc(100% - 30px));
@@ -2215,7 +2432,7 @@ dialog::backdrop {
   color: var(--coral-deep);
 }
 
-/* ---------- 鍔ㄦ晥 ---------- */
+/* ---------- 动效 ---------- */
 
 @keyframes page-enter {
   from {
@@ -2282,7 +2499,7 @@ dialog[open] .dialog-card {
   }
 }
 
-/* ---------- 鍝嶅簲寮?---------- */
+/* ---------- 响应式 ---------- */
 
 @media (max-width: 860px) {
   .search-form {
@@ -2299,6 +2516,27 @@ dialog[open] .dialog-card {
 
   .paw-mark {
     right: 20px;
+  }
+
+  /* 引擎编辑行：名称/图标/删除一行，网址单独占一行 */
+  .engine-row {
+    grid-template-columns: minmax(0, 1fr) 58px 34px;
+  }
+
+  .engine-row-name {
+    grid-area: 1 / 1 / 2 / 2;
+  }
+
+  .engine-row-mark {
+    grid-area: 1 / 2 / 2 / 3;
+  }
+
+  .engine-row-remove {
+    grid-area: 1 / 3 / 2 / 4;
+  }
+
+  .engine-row-url {
+    grid-area: 2 / 1 / 3 / 4;
   }
 }
 
@@ -2335,6 +2573,32 @@ dialog[open] .dialog-card {
     flex-direction: column;
   }
 
+  .settings-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .settings-value {
+    max-width: 100%;
+    justify-content: center;
+  }
+
+  .settings-row select {
+    width: 100%;
+  }
+
+  .weather-body {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 14px;
+  }
+
+  .weather-icon {
+    width: 72px;
+    height: 72px;
+    font-size: 22px;
+  }
+
   .weather-stage {
     grid-template-columns: 1fr;
   }
@@ -2352,8 +2616,10 @@ dialog[open] .dialog-card {
 }
 
 /* ==========================================================================
-   瑙︽懜璁惧 / 灏忓睆鎬ц兘闄嶇骇
-   backdrop-filter 涓庡ぇ闈㈢Н妯＄硦鏄Щ鍔?GPU 涓婃渶澶х殑寮€閿€锛岃繖閲屾崲鎴愪笉閫忔槑鐨?   鍒嗗眰鑳屾櫙锛岃鎰熸帴杩戜絾涓嶅啀閫愬抚閲嶇畻锛涘悓鏃跺仠鎺夋寔缁繍琛岀殑鍏夋枒涓庡ご鍍忔诞鍔ㄥ姩鐢汇€?   ========================================================================== */
+   触摸设备 / 小屏性能降级
+   backdrop-filter 与大面积模糊是移动 GPU 上最大的开销，这里换成不透明的
+   分层背景，观感接近但不再逐帧重算；同时停掉持续运行的光斑与头像浮动动画。
+   ========================================================================== */
 
 @media (pointer: coarse), (max-width: 860px) {
   .glass-card,
@@ -2362,7 +2628,7 @@ dialog[open] .dialog-card {
   .shortcut-card,
   .dialog-card,
   .dark-toggle,
-  .site-name,
+  .settings-value,
   .quote-refresh,
   .paw-mark,
   .engine-menu,
@@ -2386,20 +2652,20 @@ dialog[open] .dialog-card {
   }
 
   .dark-toggle,
-  .site-name,
+  .settings-value,
   .quote-refresh,
   .paw-mark {
     background: var(--glass-solid-soft);
   }
 
-  /* 澶ц壊鍧楀姩鐢诲湪瑙︽懜璁惧涓婂仠鎺夛紝鑳屾櫙杞负闈欐€佹笎鍙?*/
+  /* 大色块动画在触摸设备上停掉，背景转为静态渐变 */
   .aurora,
   .crew-member,
   .paw-mark {
     animation: none;
   }
 
-  /* 鍑忓皯闃村奖灞傜骇锛岄檷浣庢瘡甯у悎鎴愬紑閿€ */
+  /* 减少阴影层级，降低每帧合成开销 */
   .glass-card,
   .widget-card,
   .shortcut-card,
@@ -2418,13 +2684,13 @@ dialog[open] .dialog-card {
       inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
 
-  /* 鍏ㄥ睆鍣偣灞傚湪绉诲姩绔緱涓嶅伩澶?*/
+  /* 全屏噪点层在移动端得不偿失 */
   .grain-layer {
     display: none;
   }
 }
 
-/* 瑙︽懜璁惧娌℃湁鐪熸鐨?hover锛氶伩鍏嶇偣涓€涓嬩箣鍚庡崱鐗囧崱鍦ㄣ€屾偓娴€嶇姸鎬?*/
+/* 触摸设备没有真正的 hover：避免点一下之后卡片卡在「悬浮」状态 */
 @media (hover: none) {
   .shortcut-card:hover {
     transform: none;
@@ -2471,12 +2737,12 @@ dialog[open] .dialog-card {
   .search-button:hover,
   .primary-button:hover,
   .dark-toggle:hover,
-  .site-name:hover,
+  .settings-value:hover,
   .quote-refresh:hover {
     transform: none;
   }
 
-  /* 鐢ㄦ寜涓嬪弽棣堟浛浠?hover 鍙嶉 */
+  /* 用按下反馈替代 hover 反馈 */
   .shortcut-card:active,
   .widget-card:active {
     transform: scale(0.975);
@@ -2493,7 +2759,7 @@ dialog[open] .dialog-card {
   .dialog-actions button:active,
   .quote-refresh:active,
   .dark-toggle:active,
-  .site-name:active {
+  .settings-value:active {
     transform: scale(0.95);
   }
 }

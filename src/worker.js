@@ -55,14 +55,47 @@ function isTodayHistoryPath(pathname) {
   return pathname === "/api/today-history";
 }
 
+function isAiPath(pathname) {
+  return pathname === "/api/ai";
+}
+
 function isValidPayload(payload) {
   return (
     payload &&
     Array.isArray(payload.shortcuts) &&
     Array.isArray(payload.widgets) &&
     (!payload.searchHistory || Array.isArray(payload.searchHistory)) &&
+    (!payload.engines || Array.isArray(payload.engines)) &&
+    (!payload.siteName || typeof payload.siteName === "string") &&
+    (!payload.defaultCategory || typeof payload.defaultCategory === "string") &&
     JSON.stringify(payload).length <= MAX_PAYLOAD_BYTES
   );
+}
+
+/*
+ * 同步载荷要透传的附加设置。
+ * 之前这里只写回 shortcuts / widgets / searchHistory，导致站名等字段
+ * 前端发了但永远存不进 D1。
+ */
+function buildSyncPayload(payload) {
+  return {
+    shortcuts: payload.shortcuts,
+    widgets: payload.widgets,
+    searchHistory: Array.isArray(payload.searchHistory) ? payload.searchHistory.slice(0, 8) : [],
+    siteName: typeof payload.siteName === "string" ? payload.siteName.slice(0, 30) : "",
+    defaultCategory: typeof payload.defaultCategory === "string" ? payload.defaultCategory.slice(0, 16) : "",
+    engines: Array.isArray(payload.engines)
+      ? payload.engines
+          .filter((item) => item && typeof item === "object" && item.url)
+          .slice(0, 20)
+          .map((item) => ({
+            id: String(item.id || "").slice(0, 40),
+            name: String(item.name || "").slice(0, 20),
+            mark: String(item.mark || "").slice(0, 4),
+            url: String(item.url).slice(0, 300),
+          }))
+      : [],
+  };
 }
 
 async function ensureSchema(db) {
@@ -353,11 +386,7 @@ async function handleSync(request, env, syncKey) {
       return json({ error: "INVALID_PAYLOAD" }, { status: 400 });
     }
 
-    const text = JSON.stringify({
-      shortcuts: payload.shortcuts,
-      widgets: payload.widgets,
-      searchHistory: Array.isArray(payload.searchHistory) ? payload.searchHistory.slice(0, 8) : [],
-    });
+    const text = JSON.stringify(buildSyncPayload(payload));
 
     const result = await env.DB.prepare(
       `
@@ -377,6 +406,120 @@ async function handleSync(request, env, syncKey) {
   return json({ error: "METHOD_NOT_ALLOWED" }, { status: 405 });
 }
 
+/*
+ * AI 代理：浏览器直连大模型接口基本都会被 CORS 挡掉（DeepSeek 同样如此），
+ * 所以由 Worker 代为转发。这里只做透传，不保存 API Key。
+ */
+const MAX_AI_REQUEST_BYTES = 60_000;
+const MAX_AI_RESPONSE_BYTES = 120_000;
+
+function isPrivateHost(hostname) {
+  const host = hostname.toLowerCase();
+  if (host === "localhost" || host.endsWith(".localhost") || host === "0.0.0.0") return true;
+  if (/^(127|10)\./.test(host)) return true;
+  if (/^192\.168\./.test(host)) return true;
+  if (/^172\.(1[6-9]|2\d|3[01])\./.test(host)) return true;
+  if (/^169\.254\./.test(host)) return true;
+  if (host === "[::1]" || host.startsWith("[")) return true;
+  return false;
+}
+
+async function handleAi(request) {
+  if (request.method !== "POST") {
+    return json({ error: "METHOD_NOT_ALLOWED" }, { status: 405 });
+  }
+
+  const body = await request.json().catch(() => null);
+  if (!body || typeof body !== "object") {
+    return json({ error: "INVALID_BODY" }, { status: 400 });
+  }
+
+  const apiKey = String(body.apiKey || "").trim();
+  if (!apiKey) {
+    return json({ error: "MISSING_API_KEY", message: "请先填写 API Key。" }, { status: 400 });
+  }
+
+  const baseUrl = String(body.baseUrl || "https://api.deepseek.com/v1").trim().replace(/\/+$/, "");
+  let target;
+  try {
+    target = new URL(`${baseUrl}/chat/completions`);
+  } catch {
+    return json({ error: "INVALID_BASE_URL", message: "接口地址格式不正确。" }, { status: 400 });
+  }
+  if (target.protocol !== "https:" || isPrivateHost(target.hostname)) {
+    return json(
+      { error: "INVALID_BASE_URL", message: "接口地址必须是公开的 https 地址。" },
+      { status: 400 },
+    );
+  }
+
+  const messages = Array.isArray(body.messages) ? body.messages.slice(0, 6) : [];
+  if (!messages.length) {
+    return json({ error: "INVALID_BODY", message: "缺少对话内容。" }, { status: 400 });
+  }
+
+  const upstream = {
+    model: String(body.model || "deepseek-chat").slice(0, 60),
+    messages: messages.map((item) => ({
+      role: item?.role === "assistant" ? "assistant" : item?.role === "system" ? "system" : "user",
+      content: String(item?.content || "").slice(0, MAX_AI_REQUEST_BYTES),
+    })),
+    temperature: 0.2,
+  };
+  if (body.jsonMode) upstream.response_format = { type: "json_object" };
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60_000);
+
+  try {
+    const response = await fetch(target.toString(), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(upstream),
+      signal: controller.signal,
+    });
+
+    const text = await readLimitedText(response, MAX_AI_RESPONSE_BYTES);
+
+    if (!response.ok) {
+      return json(
+        {
+          error: "UPSTREAM_ERROR",
+          status: response.status,
+          message: text.slice(0, 400) || `上游返回 ${response.status}`,
+        },
+        { status: 502 },
+      );
+    }
+
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      return json({ error: "UPSTREAM_BAD_JSON", message: text.slice(0, 300) }, { status: 502 });
+    }
+
+    return json({
+      ok: true,
+      content: data?.choices?.[0]?.message?.content || "",
+      usage: data?.usage || null,
+    });
+  } catch (error) {
+    return json(
+      {
+        error: error?.name === "AbortError" ? "TIMEOUT" : "UPSTREAM_FAILED",
+        message: error?.name === "AbortError" ? "上游接口超时，请稍后再试。" : String(error?.message || error),
+      },
+      { status: 502 },
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export default {
   async fetch(request, env) {
     try {
@@ -389,6 +532,10 @@ export default {
 
       if (isTodayHistoryPath(url.pathname)) {
         return await handleTodayHistory(request);
+      }
+
+      if (isAiPath(url.pathname)) {
+        return await handleAi(request);
       }
 
       if (syncKey) {

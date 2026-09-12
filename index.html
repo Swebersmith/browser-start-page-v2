@@ -19,11 +19,6 @@
     <main class="shell">
       <!-- 顶部：只保留日期 + 一句小新文案 -->
       <header class="topbar" aria-label="今日状态">
-        <button class="site-name" id="siteNameButton" type="button" title="点击修改浏览器标签页上显示的站名">
-          <span id="siteNameText">小新风快捷首页</span>
-          <span class="site-name-pen" aria-hidden="true">✎</span>
-        </button>
-
         <p class="clock-line">
           <span class="clock-date" id="dateText">今天</span>
           <span class="clock-time" id="stageTimeText">--:--</span>
@@ -123,6 +118,7 @@
             <span>+</span>
             添加
           </button>
+          <button type="button" id="aiOrganizeButton">AI 整理</button>
           <button type="button" id="exportButton">导出</button>
           <label class="import-button">
             导入
@@ -166,6 +162,20 @@
               <span id="weatherDesc">小新正在抬头看天空…</span>
             </div>
           </div>
+          <dl class="weather-metrics">
+            <div>
+              <dt>体感</dt>
+              <dd id="weatherFeels">--</dd>
+            </div>
+            <div>
+              <dt>湿度</dt>
+              <dd id="weatherHumidity">--</dd>
+            </div>
+            <div>
+              <dt>风速</dt>
+              <dd id="weatherWind">--</dd>
+            </div>
+          </dl>
           <button id="weatherRefreshButton" class="weather-refresh" type="button">刷新</button>
         </article>
 
@@ -193,6 +203,37 @@
         </article>
       </section>
 
+      <!-- 底部设置区 -->
+      <section class="glass-card settings-panel" aria-label="偏好设置">
+        <div class="settings-head">
+          <p>Settings</p>
+          <h2>偏好设置</h2>
+        </div>
+
+        <div class="settings-row">
+          <span class="settings-label">站名</span>
+          <button
+            class="settings-value"
+            id="siteNameButton"
+            type="button"
+            title="修改浏览器标签页上显示的站名"
+          >
+            <span id="siteNameText">小新风快捷首页</span>
+            <span class="site-name-pen" aria-hidden="true">✎</span>
+          </button>
+        </div>
+
+        <div class="settings-row">
+          <label class="settings-label" for="defaultCategorySelect">默认分组</label>
+          <select id="defaultCategorySelect"></select>
+        </div>
+
+        <div class="settings-row">
+          <span class="settings-label">搜索引擎</span>
+          <button class="settings-value" id="manageEnginesButton" type="button">管理搜索引擎</button>
+        </div>
+      </section>
+
       <!-- 同步：放在最后，语气更柔和 -->
       <section class="glass-card sync-panel" aria-label="多设备同步">
         <label class="sync-key-field">
@@ -208,6 +249,69 @@
         <p id="syncStatus" data-tone="neutral">还没开启同步，快捷方式先只放在这台设备上，随时可以再打开。</p>
       </section>
     </main>
+
+    <dialog id="engineDialog">
+      <form method="dialog" class="dialog-card" id="engineForm">
+        <div class="dialog-head">
+          <h2>管理搜索引擎</h2>
+          <button class="icon-button" type="button" id="closeEngineDialogButton" aria-label="关闭">×</button>
+        </div>
+        <p class="field-hint">
+          自定义的搜索引擎会加到搜索框左侧的切换菜单里，也会跟随同步码同步到其他设备。
+        </p>
+        <div class="engine-rows" id="engineRows"></div>
+        <button type="button" class="ghost-button" id="addEngineRowButton">+ 添加一个搜索引擎</button>
+        <div class="dialog-actions">
+          <span></span>
+          <span></span>
+          <button type="button" id="cancelEngineDialogButton">取消</button>
+          <button type="button" id="saveEngineButton" class="primary-button">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="aiDialog">
+      <form method="dialog" class="dialog-card" id="aiForm">
+        <div class="dialog-head">
+          <h2>AI 整理快捷方式</h2>
+          <button class="icon-button" type="button" id="closeAiDialogButton" aria-label="关闭">×</button>
+        </div>
+        <p class="field-hint">
+          让模型把现有快捷方式重新分组、统一命名、合并重复项。整理结果会先给你预览，确认后才会覆盖。
+        </p>
+
+        <details class="ai-settings" id="aiSettings">
+          <summary>模型设置</summary>
+          <div class="ai-settings-body">
+            <label>
+              接口地址
+              <input id="aiBaseUrl" type="text" inputmode="url" placeholder="https://api.deepseek.com/v1" />
+            </label>
+            <label>
+              模型
+              <input id="aiModel" type="text" placeholder="deepseek-chat" />
+            </label>
+            <label>
+              API Key
+              <input id="aiApiKey" type="password" autocomplete="off" placeholder="sk-..." />
+              <small class="field-hint">
+                只保存在这台设备的浏览器里，不会写进同步码，也不会存到云端。
+              </small>
+            </label>
+          </div>
+        </details>
+
+        <p class="ai-status" id="aiStatus" role="status" aria-live="polite"></p>
+        <div class="ai-result" id="aiResult" hidden></div>
+
+        <div class="dialog-actions">
+          <button type="button" id="aiApplyButton" disabled>应用结果</button>
+          <span></span>
+          <button type="button" id="cancelAiDialogButton">取消</button>
+          <button type="submit" id="aiRunButton" class="primary-button">开始整理</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="siteNameDialog">
       <form method="dialog" class="dialog-card" id="siteNameForm">
