@@ -75,14 +75,16 @@ npx.cmd wrangler deploy --dry-run
 - `src/worker.js` 负责 API
 - `run_worker_first: ["/api/*"]` 确保 API 请求进入 Worker
 
-Cloudflare GitHub 自动部署建议配置：
+Cloudflare GitHub 自动部署建议配置（在 Worker 的 **Settings → Build** 里设置）：
 
 ```txt
 Build command: npm run build
 Deploy command: npx wrangler deploy
 Root directory: /
-Output directory: dist
 ```
+
+不需要填 Output directory：`wrangler.jsonc` 已经把 `./dist` 配置成 Static Assets 的发布目录。
+注意本仓库是私有仓库，GitHub App 授权时要勾选 `Swebersmith/browser-start-page-v2`。
 
 每次修改后：
 

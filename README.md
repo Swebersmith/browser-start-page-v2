@@ -87,35 +87,39 @@ docker run -d --name launchpad -p 8080:80 -v "$PWD":/usr/share/nginx/html:ro ngi
 
 ### GitHub 自动部署
 
-1. 进入 Cloudflare Dashboard。
-2. 打开 Workers & Pages。
-3. 选择创建 Worker，并连接 GitHub 仓库 `Swebersmith/browser-start-page-v2`。
-4. 使用下面的构建配置：
+1. 进入 [Cloudflare Dashboard](https://dash.cloudflare.com/)。
+2. 打开 **Workers & Pages** → **Create** → **Workers** → **Import a repository**（连接 Git）。
+3. 首次连接需要授权 Cloudflare 的 GitHub App。本仓库是**私有仓库**，授权时务必勾选 `Swebersmith/browser-start-page-v2`，否则仓库列表里看不到它。
+4. 选择仓库 `Swebersmith/browser-start-page-v2`，生产分支选择 `main`。
+5. 进入 **Settings → Build**，确认构建配置：
 
 ```txt
-Build command: npm run build
+Build command:  npm run build
 Deploy command: npx wrangler deploy
 Root directory: /
-Output directory: dist
 ```
 
-`wrangler.jsonc` 会把 `dist/` 作为 Workers Static Assets 发布目录。之后每次推送到 GitHub `main` 分支，Cloudflare 都会自动重新构建并部署。
+Workers Builds 会使用 `package.json` 里声明的 Wrangler 版本（本项目为 `^4.0.0`）。
 
-### 启用多设备同步
+`wrangler.jsonc` 已经把 `./dist` 配置成 Workers Static Assets 的发布目录，所以**不需要**再填 Output directory。之后每次推送到 `main` 分支，Cloudflare 都会自动重新构建并部署。
 
-1. 在 Cloudflare Dashboard 创建一个 D1 数据库，建议名称：
+### 多设备同步（v2 已配置完成）
+
+v2 使用独立的 D1 数据库，已经创建完成并跑过建表迁移，`wrangler.jsonc` 里也已经绑定好，正常情况下不需要再改动：
 
 ```txt
-browser-start-page-db-v2
+Worker 名称：browser-start-page-v2
+D1 数据库：  browser-start-page-db-v2
+database_id：dfeb69d9-c949-406e-94d4-dc27c656c029
+binding：    DB（必须保持这个名字，Worker 代码里用的是 env.DB）
 ```
 
-2. 进入数据库详情，复制 `database_id`。
+如果需要另外重建一套环境：
 
-3. 打开 `wrangler.jsonc`，取消 `d1_databases` 注释，并把 `database_id` 替换成你的真实 ID。`binding` 必须保持为 `DB`。
-
-4. 推送到 GitHub，Cloudflare Workers 会自动重新部署。
-
-5. 第一次部署后，运行一次 D1 迁移：
+1. 创建数据库：`npx wrangler d1 create browser-start-page-db-v2`
+2. 把输出的 `database_id` 填进 `wrangler.jsonc`，`binding` 必须保持为 `DB`。
+3. 推送到 GitHub，Workers 会自动重新部署。
+4. 运行一次迁移建表：
 
 ```bash
 npm install
