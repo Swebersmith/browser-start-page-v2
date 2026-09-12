@@ -19,14 +19,22 @@
     <main class="shell">
       <!-- 顶部：只保留日期 + 一句小新文案 -->
       <header class="topbar" aria-label="今日状态">
-        <p class="eyebrow">
-          <span id="dateText">今天</span>
-          <span class="eyebrow-time" id="stageTimeText">--:--</span>
+        <button class="site-name" id="siteNameButton" type="button" title="点击修改浏览器标签页上显示的站名">
+          <span id="siteNameText">小新风快捷首页</span>
+          <span class="site-name-pen" aria-hidden="true">✎</span>
+        </button>
+
+        <p class="clock-line">
+          <span class="clock-date" id="dateText">今天</span>
+          <span class="clock-time" id="stageTimeText">--:--</span>
         </p>
-        <p class="topbar-line">
-          <strong>小新今天想去哪？</strong>
-          <span>先搜，或者点下面的快捷方式。</span>
-        </p>
+
+        <figure class="daily-quote">
+          <blockquote id="quoteText">小新今天想去哪？先搜，或者点下面的快捷方式。</blockquote>
+          <figcaption id="quoteAuthor">—— 野原新之助</figcaption>
+        </figure>
+
+        <button class="quote-refresh" id="quoteRefreshButton" type="button">换一句台词</button>
       </header>
 
       <!-- 核心区：搜索引擎 + 搜索框，一整块液态玻璃 -->
@@ -43,6 +51,9 @@
           </span>
           <span class="crew-member crew-bochan">
             <img src="./assets/avatars/bochan.png" alt="阿呆" />
+          </span>
+          <span class="crew-member crew-masao">
+            <img src="./assets/avatars/masao.png" alt="佐藤正男" />
           </span>
           <span class="crew-member crew-shiro">
             <img src="./assets/avatars/shiro.png" alt="小白" />
@@ -197,6 +208,26 @@
         <p id="syncStatus" data-tone="neutral">还没开启同步，快捷方式先只放在这台设备上，随时可以再打开。</p>
       </section>
     </main>
+
+    <dialog id="siteNameDialog">
+      <form method="dialog" class="dialog-card" id="siteNameForm">
+        <div class="dialog-head">
+          <h2>修改站名</h2>
+          <button class="icon-button" type="button" id="closeSiteNameDialogButton" aria-label="关闭">×</button>
+        </div>
+        <label>
+          站名
+          <input id="siteNameInput" type="text" maxlength="30" placeholder="例如：小新风快捷首页" />
+          <small class="field-hint">显示在浏览器最上面的标签页上，也会跟随同步码同步到其他设备。</small>
+        </label>
+        <div class="dialog-actions">
+          <button type="button" id="resetSiteNameButton">恢复默认</button>
+          <span></span>
+          <button type="button" id="cancelSiteNameDialogButton">取消</button>
+          <button type="submit" class="primary-button">保存</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="shortcutDialog">
       <form method="dialog" class="dialog-card" id="shortcutForm">

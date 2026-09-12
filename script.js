@@ -4,9 +4,36 @@ const WIDGET_KEY = "browser-launchpad-widgets-v1";
 const SYNC_KEY = "browser-launchpad-sync-key-v1";
 const SEARCH_HISTORY_KEY = "browser-launchpad-search-history-v1";
 const DARK_MODE_KEY = "browser-launchpad-dark-mode-v1";
+const SITE_NAME_KEY = "browser-launchpad-site-name-v1";
+const DEFAULT_SITE_NAME = "小新风快捷首页";
+const MAX_SITE_NAME = 30;
 const MAX_SEARCH_HISTORY = 8;
 const ALL_CATEGORY = "全部";
 const DEFAULT_CATEGORY = "常用";
+
+/* 每日台词：按当天日期轮换，也可以点「换一句」手动切换 */
+const DAILY_QUOTES = [
+  { text: "我回来了！", author: "野原新之助" },
+  { text: "大象，大象，你的鼻子为什么那么长～", author: "野原新之助" },
+  { text: "美女姐姐，要不要和我一起玩？", author: "野原新之助" },
+  { text: "我叫野原新之助，今年五岁。", author: "野原新之助" },
+  { text: "动感超人，出动！", author: "野原新之助" },
+  { text: "妈妈，我肚子饿了。", author: "野原新之助" },
+  { text: "我一点都不奇怪哦。", author: "野原新之助" },
+  { text: "这种事，等我长大再说吧。", author: "野原新之助" },
+  { text: "春日部防卫队，集合！", author: "春日部防卫队" },
+  { text: "我是野原广志，今年三十五岁。", author: "野原广志" },
+  { text: "人生啊，就是要不停地妥协。", author: "野原广志" },
+  { text: "新之助，你给我适可而止！", author: "野原美冴" },
+  { text: "再不快点，上学就要迟到了！", author: "野原美冴" },
+  { text: "今天的晚饭，就交给我吧。", author: "野原美冴" },
+  { text: "新之助，你别闹了啦。", author: "风间彻" },
+  { text: "我们来玩过家家吧。", author: "樱田妮妮" },
+  { text: "呜呜……好可怕……", author: "佐藤正男" },
+  { text: "……", author: "阿呆" },
+  { text: "汪！", author: "小白" },
+  { text: "向日葵班的各位，今天也要加油哦。", author: "园长先生" },
+];
 
 const searchEngines = [
   { id: "google", name: "Google", mark: "G", url: "https://www.google.com/search?q=" },
@@ -150,6 +177,17 @@ const elements = {
   cancelWidgetDialogButton: document.querySelector("#cancelWidgetDialogButton"),
   deleteWidgetButton: document.querySelector("#deleteWidgetButton"),
   darkToggleButton: document.querySelector("#darkToggleButton"),
+  siteNameButton: document.querySelector("#siteNameButton"),
+  siteNameText: document.querySelector("#siteNameText"),
+  siteNameDialog: document.querySelector("#siteNameDialog"),
+  siteNameForm: document.querySelector("#siteNameForm"),
+  siteNameInput: document.querySelector("#siteNameInput"),
+  closeSiteNameDialogButton: document.querySelector("#closeSiteNameDialogButton"),
+  cancelSiteNameDialogButton: document.querySelector("#cancelSiteNameDialogButton"),
+  resetSiteNameButton: document.querySelector("#resetSiteNameButton"),
+  quoteText: document.querySelector("#quoteText"),
+  quoteAuthor: document.querySelector("#quoteAuthor"),
+  quoteRefreshButton: document.querySelector("#quoteRefreshButton"),
   searchHistory: document.querySelector("#searchHistory"),
   historyPanel: document.querySelector("#historyPanel"),
   todayHistorySource: document.querySelector("#todayHistorySource"),
@@ -336,6 +374,7 @@ function getSyncPayload() {
     shortcuts,
     widgets,
     searchHistory,
+    siteName: loadSiteName(),
   };
 }
 
@@ -383,6 +422,9 @@ function applyRemotePayload(payload) {
   searchHistory = Array.isArray(payload.searchHistory)
     ? payload.searchHistory.filter((item) => typeof item === "string" && item.trim()).slice(0, MAX_SEARCH_HISTORY)
     : searchHistory;
+  if (typeof payload.siteName === "string" && payload.siteName.trim()) {
+    applySiteName(payload.siteName);
+  }
   saveShortcuts();
   saveWidgets();
   saveSearchHistory({ sync: false });
@@ -699,12 +741,69 @@ function updateClock() {
     hour12: false,
   });
   const dateText = now.toLocaleDateString("zh-CN", {
-    weekday: "long",
+    year: "numeric",
     month: "long",
     day: "numeric",
   });
+  const weekText = now.toLocaleDateString("zh-CN", { weekday: "long" });
   elements.stageTimeText.textContent = timeText;
-  elements.dateText.textContent = dateText;
+  elements.dateText.textContent = `${dateText} ${weekText}`;
+}
+
+/* ---------- 站名（浏览器标签页标题） ---------- */
+
+function loadSiteName() {
+  const saved = (localStorage.getItem(SITE_NAME_KEY) || "").trim();
+  return saved || DEFAULT_SITE_NAME;
+}
+
+function applySiteName(name) {
+  const value = (name || "").trim().slice(0, MAX_SITE_NAME) || DEFAULT_SITE_NAME;
+  document.title = value;
+  if (elements.siteNameText) elements.siteNameText.textContent = value;
+  localStorage.setItem(SITE_NAME_KEY, value);
+}
+
+function openSiteNameDialog() {
+  if (!elements.siteNameDialog) return;
+  elements.siteNameInput.value = loadSiteName();
+  elements.siteNameDialog.showModal();
+  elements.siteNameInput.focus();
+  elements.siteNameInput.select();
+}
+
+function closeSiteNameDialog() {
+  elements.siteNameDialog?.close();
+}
+
+function saveSiteNameFromDialog(event) {
+  event.preventDefault();
+  applySiteName(elements.siteNameInput.value);
+  closeSiteNameDialog();
+  scheduleCloudSave();
+}
+
+/* ---------- 每日台词 ---------- */
+
+let quoteOffset = 0;
+
+function getDailyQuoteIndex() {
+  const now = new Date();
+  const startOfYear = new Date(now.getFullYear(), 0, 0);
+  const dayOfYear = Math.floor((now - startOfYear) / 86400000);
+  return ((dayOfYear % DAILY_QUOTES.length) + DAILY_QUOTES.length) % DAILY_QUOTES.length;
+}
+
+function renderQuote() {
+  const index = (getDailyQuoteIndex() + quoteOffset) % DAILY_QUOTES.length;
+  const quote = DAILY_QUOTES[index];
+  if (elements.quoteText) elements.quoteText.textContent = quote.text;
+  if (elements.quoteAuthor) elements.quoteAuthor.textContent = `—— ${quote.author}`;
+}
+
+function nextQuote() {
+  quoteOffset = (quoteOffset + 1) % DAILY_QUOTES.length;
+  renderQuote();
 }
 
 function setWeatherLoading(isLoading) {
@@ -1500,7 +1599,18 @@ elements.cancelWidgetDialogButton.addEventListener("click", closeWidgetDialog);
 elements.widgetForm.addEventListener("submit", saveWidgetFromDialog);
 elements.deleteWidgetButton.addEventListener("click", deleteEditingWidget);
 elements.weatherRefreshButton.addEventListener("click", loadWeather);
+elements.siteNameButton.addEventListener("click", openSiteNameDialog);
+elements.siteNameForm.addEventListener("submit", saveSiteNameFromDialog);
+elements.closeSiteNameDialogButton.addEventListener("click", closeSiteNameDialog);
+elements.cancelSiteNameDialogButton.addEventListener("click", closeSiteNameDialog);
+elements.resetSiteNameButton.addEventListener("click", () => {
+  elements.siteNameInput.value = DEFAULT_SITE_NAME;
+  elements.siteNameInput.focus();
+});
+elements.quoteRefreshButton.addEventListener("click", nextQuote);
 
+applySiteName(loadSiteName());
+renderQuote();
 updateClock();
 setInterval(updateClock, 1000);
 initDarkMode();
