@@ -94,7 +94,7 @@ const TODAY_HISTORY_PUBLIC_API = "https://60s.viki.moe/v2/today-in-history";
 const elements = {
   dateText: document.querySelector("#dateText"),
   stageTimeText: document.querySelector("#stageTimeText"),
-  stageDateText: document.querySelector("#stageDateText"),
+  weatherPanel: document.querySelector("#weatherPanel"),
   weatherIcon: document.querySelector("#weatherIcon"),
   weatherTemp: document.querySelector("#weatherTemp"),
   weatherLocation: document.querySelector("#weatherLocation"),
@@ -151,6 +151,7 @@ const elements = {
   deleteWidgetButton: document.querySelector("#deleteWidgetButton"),
   darkToggleButton: document.querySelector("#darkToggleButton"),
   searchHistory: document.querySelector("#searchHistory"),
+  historyPanel: document.querySelector("#historyPanel"),
   todayHistorySource: document.querySelector("#todayHistorySource"),
   todayHistoryDomestic: document.querySelector("#todayHistoryDomestic"),
   todayHistoryWorld: document.querySelector("#todayHistoryWorld"),
@@ -366,8 +367,8 @@ async function requestSync(method, syncKey, payload = null) {
   if (!response.ok) {
     const message =
       data.error === "D1_NOT_CONFIGURED"
-        ? "云端数据库还没绑定 D1。"
-        : data.error || "同步失败";
+        ? "云端同步还没配置好，先用本机保存也没问题。"
+        : data.error || "这次没连上云端，稍后再试一次。";
     throw new Error(message);
   }
   return data;
@@ -415,7 +416,7 @@ function scheduleCloudSave() {
 async function pullCloudData({ createIfMissing = false } = {}) {
   const syncKey = elements.syncKeyInput.value.trim();
   if (syncKey.length < 4) {
-    setSyncStatus("同步码至少需要 4 个字符。", "danger");
+    setSyncStatus("同步码至少 4 个字符，长一点会更安全。", "neutral");
     return;
   }
 
@@ -423,7 +424,7 @@ async function pullCloudData({ createIfMissing = false } = {}) {
   syncEnabled = true;
   elements.syncKeyInput.value = syncKey;
   elements.syncEnableButton.textContent = "同步已启用";
-  setSyncStatus("正在连接云端数据...", "neutral");
+  setSyncStatus("小新正在连云端…", "neutral");
 
   try {
     const data = await requestSync("GET", syncKey);
@@ -436,7 +437,7 @@ async function pullCloudData({ createIfMissing = false } = {}) {
     if (createIfMissing) {
       await pushCloudData("云端还没有数据，已用本机数据创建。");
     } else {
-      setSyncStatus("云端还没有数据，可点击启用同步用本机数据创建。", "neutral");
+      setSyncStatus("云端还是空的，点「启用同步」就会把这台设备的快捷方式存上去。", "neutral");
     }
   } catch (error) {
     syncEnabled = false;
@@ -704,14 +705,18 @@ function updateClock() {
   });
   elements.stageTimeText.textContent = timeText;
   elements.dateText.textContent = dateText;
-  elements.stageDateText.textContent = dateText;
 }
 
-function setWeatherState({ mark = "?", temp = "等待定位", location = "等待位置", desc = "允许定位后，小新帮你看天气。" }) {
+function setWeatherLoading(isLoading) {
+  elements.weatherPanel?.classList.toggle("is-loading", isLoading);
+}
+
+function setWeatherState({ mark = "?", temp = "等待定位", location = "等待位置", desc = "小新正在抬头看天空…" }) {
   elements.weatherIcon.textContent = mark;
   elements.weatherTemp.textContent = temp;
   elements.weatherLocation.textContent = location;
   elements.weatherDesc.textContent = desc;
+  setWeatherLoading(false);
 }
 
 function formatCoordinates(latitude, longitude) {
@@ -753,7 +758,8 @@ function getCurrentPosition() {
 }
 
 async function loadWeather() {
-  setWeatherState({ mark: "...", temp: "正在定位", location: "正在获取位置", desc: "小新正在抬头看天空。" });
+  setWeatherLoading(true);
+  elements.weatherDesc.textContent = "小新正在抬头看天空…";
   elements.weatherRefreshButton.disabled = true;
 
   try {
@@ -787,9 +793,9 @@ async function loadWeather() {
   } catch {
     setWeatherState({
       mark: "云",
-      temp: "天气暂不可用",
-      location: "位置暂不可用",
-      desc: "请允许定位，或稍后刷新一次。",
+      temp: "天气暂时看不到",
+      location: "位置暂时不可用",
+      desc: "小新没找到定位，允许定位或稍后点一下刷新。",
     });
   } finally {
     elements.weatherRefreshButton.disabled = false;
@@ -1219,8 +1225,20 @@ function getTodayHistoryFallback() {
   const key = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   return (
     fallbackHistoryEvents[key] || {
-      domestic: [{ year: "国内", title: "国内历史资料正在等待在线源更新", detail: "请稍后刷新，系统会继续从国内可访问的数据源获取当天事件。" }],
-      world: [{ year: "国际", title: "国际历史资料正在等待在线源更新", detail: "请稍后刷新，系统会继续从国内可访问的数据源获取当天事件。" }],
+      domestic: [
+        {
+          year: "国内",
+          title: "今天国内的小故事还没翻到",
+          detail: "在线源暂时没回应，稍后刷新一下，小新再翻一次日历。",
+        },
+      ],
+      world: [
+        {
+          year: "国际",
+          title: "今天国际的小故事还没翻到",
+          detail: "在线源暂时没回应，稍后刷新一下，小新再翻一次日历。",
+        },
+      ],
     }
   );
 }
@@ -1288,23 +1306,28 @@ function renderHistoryGroup(container, events, fallback) {
   });
 }
 
+function setHistoryLoading(isLoading) {
+  elements.historyPanel?.classList.toggle("is-loading", isLoading);
+}
+
 function setTodayHistory(data = {}) {
   const fallback = getTodayHistoryFallback();
   renderHistoryGroup(elements.todayHistoryDomestic, data.domestic, fallback.domestic);
   renderHistoryGroup(elements.todayHistoryWorld, data.world, fallback.world);
 
   const sourceLabels = {
-    fallback: "本地精选（在线不可用）",
+    fallback: "本地精选（在线源暂时不可用）",
     domestic_api: "国内可访问 API",
     browser_api: "国内直连 API",
     mixed: "国内 API + 精选",
   };
   elements.todayHistorySource.textContent = sourceLabels[data.source] || data.source || "本地精选";
+  setHistoryLoading(false);
 }
 
 async function loadTodayHistory() {
-  const loading = [{ year: "…", title: "正在获取当天事件", detail: "请稍候。" }];
-  setTodayHistory({ domestic: loading, world: loading, source: "正在获取" });
+  setHistoryLoading(true);
+  elements.todayHistorySource.textContent = "正在翻日历";
 
   try {
     const response = await fetch("/api/today-history");

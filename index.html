@@ -7,27 +7,40 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="paper-grain" aria-hidden="true"></div>
-    <div class="doodle-layer" aria-hidden="true">
-      <span class="doodle doodle-star">星星</span>
-      <span class="doodle doodle-swirl"></span>
-      <span class="doodle doodle-pencil"></span>
-      <span class="doodle doodle-badge">Action</span>
+    <div class="aurora-layer" aria-hidden="true">
+      <span class="aurora aurora-coral"></span>
+      <span class="aurora aurora-butter"></span>
+      <span class="aurora aurora-sky"></span>
+      <span class="aurora aurora-mint"></span>
     </div>
+    <div class="grain-layer" aria-hidden="true"></div>
     <button id="darkToggleButton" class="dark-toggle" type="button" aria-label="切换暗色模式" title="切换暗色模式">暗</button>
 
     <main class="shell">
-      <section class="topbar hero-strip" aria-label="今日状态">
-        <img class="hero-strip-main" src="./assets/custom/shin-surprise.jpg" alt="蜡笔小新惊喜表情" />
-        <div class="hero-strip-copy">
-          <p class="eyebrow" id="dateText">今天</p>
-          <strong>今天想去哪？</strong>
-          <span>先搜，或者直接点下面的快捷方式。</span>
-        </div>
-        <img class="hero-strip-side" src="./assets/custom/kasukabe-sky.jpg" alt="春日部防卫队在草地上" />
-      </section>
+      <!-- 顶部：只保留日期 + 一句小新文案 -->
+      <header class="topbar" aria-label="今日状态">
+        <p class="eyebrow">
+          <span id="dateText">今天</span>
+          <span class="eyebrow-time" id="stageTimeText">--:--</span>
+        </p>
+        <p class="topbar-line">
+          <strong>小新今天想去哪？</strong>
+          <span>先搜，或者点下面的快捷方式。</span>
+        </p>
+      </header>
 
+      <!-- 核心区：搜索引擎 + 搜索框，一整块液态玻璃 -->
       <section class="search-zone" aria-label="主搜索">
+        <span class="paw-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" focusable="false">
+            <ellipse cx="16" cy="20.6" rx="7.6" ry="6.4" />
+            <ellipse cx="7.2" cy="12.4" rx="3.4" ry="4.2" />
+            <ellipse cx="13.4" cy="7.4" rx="3.4" ry="4.4" />
+            <ellipse cx="20.8" cy="8.2" rx="3.4" ry="4.4" />
+            <ellipse cx="26.2" cy="13.8" rx="3.1" ry="3.8" />
+          </svg>
+        </span>
+
         <form id="searchForm" class="search-form">
           <div class="engine-select">
             <span id="engineSelectLabel" class="sr-only">选择搜索引擎</span>
@@ -49,9 +62,10 @@
             </button>
             <div id="engineMenu" class="engine-menu" role="listbox" aria-labelledby="engineSelectLabel"></div>
           </div>
+
           <div class="search-input-wrap">
             <span class="sr-only">搜索内容或网址</span>
-            <svg viewBox="0 0 24 24" aria-hidden="true">
+            <svg class="search-glyph" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="11" cy="11" r="7"></circle>
               <path d="m20 20-3.5-3.5"></path>
             </svg>
@@ -60,16 +74,19 @@
               type="text"
               aria-label="Search"
               autocomplete="off"
-              placeholder="搜索，或者输入网址直接打开"
+              placeholder="搜点什么，或者粘贴一个网址"
               autofocus
             />
             <div class="search-history" id="searchHistory" hidden></div>
           </div>
+
           <button class="search-button" type="submit">出发</button>
         </form>
+
         <div class="quick-engines" id="engineButtons" aria-label="搜索引擎快捷切换"></div>
       </section>
 
+      <!-- 快捷方式 -->
       <section class="toolbar" aria-label="快捷方式工具">
         <div class="tabs" id="categoryTabs"></div>
         <div class="actions">
@@ -87,54 +104,7 @@
 
       <section class="shortcut-grid" id="shortcutGrid" aria-label="快捷方式"></section>
 
-      <section class="sync-panel" aria-label="多设备同步">
-        <label class="sync-key-field">
-          <span>同步码</span>
-          <input id="syncKeyInput" type="password" autocomplete="off" maxlength="80" placeholder="输入同一个同步码" />
-        </label>
-        <label class="sync-visibility-toggle">
-          <input id="syncKeyVisibleToggle" type="checkbox" />
-          <span>显示同步码</span>
-        </label>
-        <button type="button" id="syncEnableButton">启用同步</button>
-        <button type="button" id="syncPullButton">拉取云端</button>
-        <p id="syncStatus">未启用同步，本机数据只保存在当前浏览器。</p>
-      </section>
-
-      <section class="character-stage weather-stage" aria-label="天气和时间">
-        <div class="stage-copy weather-time-card">
-          <p>Today</p>
-          <h2 id="stageTimeText">--:--</h2>
-          <span id="stageDateText">正在准备今天</span>
-        </div>
-        <div class="weather-panel">
-          <div class="weather-icon" id="weatherIcon" aria-hidden="true">?</div>
-          <div>
-            <p class="weather-kicker">当前天气</p>
-            <strong id="weatherTemp">定位后显示</strong>
-            <small class="weather-location" id="weatherLocation">等待位置</small>
-            <span id="weatherDesc">允许定位后，小新帮你看天气。</span>
-          </div>
-          <button id="weatherRefreshButton" class="weather-refresh" type="button">刷新</button>
-        </div>
-        <section class="today-history-panel" aria-label="历史上的今天">
-          <div class="today-history-head">
-            <p>历史上的今天</p>
-            <span id="todayHistorySource">正在获取</span>
-          </div>
-          <div class="today-history-groups">
-            <section class="history-group" aria-labelledby="domesticHistoryTitle">
-              <h3 id="domesticHistoryTitle">国内</h3>
-              <div class="history-event-list" id="todayHistoryDomestic" aria-live="polite"></div>
-            </section>
-            <section class="history-group" aria-labelledby="worldHistoryTitle">
-              <h3 id="worldHistoryTitle">国际</h3>
-              <div class="history-event-list" id="todayHistoryWorld" aria-live="polite"></div>
-            </section>
-          </div>
-        </section>
-      </section>
-
+      <!-- 自定义小组件 -->
       <section class="widget-board" aria-label="自定义小组件">
         <div class="section-head">
           <div>
@@ -147,6 +117,66 @@
           </button>
         </div>
         <div class="widget-grid" id="widgetGrid"></div>
+      </section>
+
+      <!-- 底部信息区：天气 + 旧日历，两张玻璃卡 -->
+      <section class="weather-stage" aria-label="天气和历史上的今天">
+        <article class="glass-card weather-panel is-loading" id="weatherPanel">
+          <div class="skeleton weather-skeleton" aria-hidden="true">
+            <span class="skel skel-round"></span>
+            <span class="skel skel-line skel-w-70"></span>
+            <span class="skel skel-line skel-w-90"></span>
+            <span class="skel skel-line skel-w-50"></span>
+          </div>
+          <div class="weather-body">
+            <div class="weather-icon" id="weatherIcon" aria-hidden="true">?</div>
+            <div class="weather-copy">
+              <p class="weather-kicker">当前天气</p>
+              <strong id="weatherTemp">定位后显示</strong>
+              <small class="weather-location" id="weatherLocation">等待位置</small>
+              <span id="weatherDesc">小新正在抬头看天空…</span>
+            </div>
+          </div>
+          <button id="weatherRefreshButton" class="weather-refresh" type="button">刷新</button>
+        </article>
+
+        <article class="glass-card today-history-panel is-loading" id="historyPanel">
+          <div class="today-history-head">
+            <p>小新翻了翻旧日历</p>
+            <span id="todayHistorySource">正在获取</span>
+          </div>
+          <div class="skeleton history-skeleton" aria-hidden="true">
+            <span class="skel skel-line skel-w-40"></span>
+            <span class="skel skel-line skel-w-90"></span>
+            <span class="skel skel-line skel-w-80"></span>
+            <span class="skel skel-line skel-w-60"></span>
+          </div>
+          <div class="today-history-groups">
+            <section class="history-group" aria-labelledby="domesticHistoryTitle">
+              <h3 id="domesticHistoryTitle">国内</h3>
+              <div class="history-event-list" id="todayHistoryDomestic" aria-live="polite"></div>
+            </section>
+            <section class="history-group" aria-labelledby="worldHistoryTitle">
+              <h3 id="worldHistoryTitle">国际</h3>
+              <div class="history-event-list" id="todayHistoryWorld" aria-live="polite"></div>
+            </section>
+          </div>
+        </article>
+      </section>
+
+      <!-- 同步：放在最后，语气更柔和 -->
+      <section class="glass-card sync-panel" aria-label="多设备同步">
+        <label class="sync-key-field">
+          <span>同步码</span>
+          <input id="syncKeyInput" type="password" autocomplete="off" maxlength="80" placeholder="想多设备同步的话，填一个只有你知道的同步码" />
+        </label>
+        <label class="sync-visibility-toggle">
+          <input id="syncKeyVisibleToggle" type="checkbox" />
+          <span>显示同步码</span>
+        </label>
+        <button type="button" id="syncEnableButton">启用同步</button>
+        <button type="button" id="syncPullButton">拉取云端</button>
+        <p id="syncStatus" data-tone="neutral">还没开启同步，快捷方式先只放在这台设备上，随时可以再打开。</p>
       </section>
     </main>
 
