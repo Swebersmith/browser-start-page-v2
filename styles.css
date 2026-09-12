@@ -440,8 +440,8 @@ textarea:focus-visible,
 .search-zone {
   order: 2;
   isolation: isolate;
-  margin-bottom: 20px;
-  padding: 20px 20px 16px;
+  margin: 46px 0 20px;
+  padding: 26px 20px 16px;
   border-radius: 30px;
   /* 主角卡：玻璃更厚，带一层小新色 */
   border-color: rgba(255, 255, 255, 0.9);
@@ -507,6 +507,91 @@ textarea:focus-visible,
   }
   66% {
     transform: scale(0.985) translate3d(-1.2%, 1.4%, 0);
+  }
+}
+
+/* 春日部防卫队：趴在搜索卡上沿 */
+.crew-strip {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 4;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(12px, 4.2vw, 72px);
+  padding: 0 20px;
+  transform: translateY(-70%);
+  pointer-events: none;
+}
+
+.crew-member {
+  display: block;
+  width: clamp(44px, 5.6vw, 64px);
+  height: clamp(44px, 5.6vw, 64px);
+  flex: 0 0 auto;
+  border: 1px solid rgba(255, 255, 255, 0.92);
+  border-radius: 50%;
+  background: linear-gradient(140deg, #ffeacb, #cfe4f2);
+  box-shadow:
+    0 12px 24px rgba(126, 100, 74, 0.22),
+    0 2px 6px rgba(126, 100, 74, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  overflow: hidden;
+  animation: crew-bob 5.6s ease-in-out infinite;
+}
+
+:root[data-theme="dark"] .crew-member {
+  border-color: rgba(255, 255, 255, 0.24);
+  background: linear-gradient(140deg, #4a4335, #33434f);
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.45),
+    0 2px 6px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.crew-member img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 高低错落，像真的趴在上面 */
+.crew-shinnosuke {
+  transform: translateY(3px);
+}
+
+.crew-kazama {
+  transform: translateY(-4px);
+  animation-delay: -0.7s;
+}
+
+.crew-nene {
+  transform: translateY(2px);
+  animation-delay: -1.4s;
+}
+
+.crew-bochan {
+  transform: translateY(-3px);
+  animation-delay: -2.1s;
+}
+
+.crew-shiro {
+  width: clamp(38px, 4.6vw, 54px);
+  height: clamp(38px, 4.6vw, 54px);
+  transform: translateY(8px);
+  animation-delay: -2.8s;
+}
+
+@keyframes crew-bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -4px;
   }
 }
 
