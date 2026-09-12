@@ -13,7 +13,7 @@
 - 线上地址：`待配置（v2 尚未部署）`
 - Cloudflare Worker 名称：`browser-start-page-v2`
 - D1 数据库名称：`browser-start-page-db-v2`
-- D1 database_id：`待创建后填入 wrangler.jsonc`
+- D1 database_id：`dfeb69d9-c949-406e-94d4-dc27c656c029`（region: WNAM，已建表）
 - D1 binding 名称：`DB`
 
 ### v1 线上环境（仅供参考，不要在此仓库改动）
