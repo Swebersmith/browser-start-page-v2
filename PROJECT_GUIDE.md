@@ -2,14 +2,26 @@
 
 这是一份给后续继续修改项目时看的参考说明。当前项目是一个蜡笔小新风格的浏览器起始页，已经部署到 Cloudflare Workers，并接入 Cloudflare D1 做多设备同步。
 
+> 本仓库是从 `Swebersmith/browser-start-page`（v1）复制出来的 **v2 迭代仓库**。
+> v2 使用**独立的** Worker 与 D1 数据库，因此在这里改动不会影响 v1 的线上站点。
+> v1 的原仓库仍然保留在 `upstream` remote 中，方便对照。
+
 ## 当前项目状态
 
-- GitHub 仓库：`https://github.com/Swebersmith/browser-start-page`
-- 线上地址：`https://xx.webber.qzz.io/`
-- Cloudflare Worker 名称：`browser-start-page`
-- D1 数据库名称：`browser-start-page-db`
-- D1 database_id：`66afa09c-fcd4-408b-9744-9861252ddd5a`
+- GitHub 仓库：`https://github.com/Swebersmith/browser-start-page-v2`
+- 上游 v1 仓库：`https://github.com/Swebersmith/browser-start-page`
+- 线上地址：`待配置（v2 尚未部署）`
+- Cloudflare Worker 名称：`browser-start-page-v2`
+- D1 数据库名称：`browser-start-page-db-v2`
+- D1 database_id：`待创建后填入 wrangler.jsonc`
 - D1 binding 名称：`DB`
+
+### v1 线上环境（仅供参考，不要在此仓库改动）
+
+- v1 线上地址：`https://xx.webber.qzz.io/`
+- v1 Worker 名称：`browser-start-page`
+- v1 D1 数据库名称：`browser-start-page-db`
+- v1 D1 database_id：`66afa09c-fcd4-408b-9744-9861252ddd5a`
 
 ## 主要功能
 
@@ -125,7 +137,7 @@ CREATE TABLE IF NOT EXISTS sync_profiles (
 如果页面提示同步失败，优先检查 API：
 
 ```bash
-curl.exe -i "https://xx.webber.qzz.io/api/sync/codex-debug-key"
+curl.exe -i "https://你的-v2-域名/api/sync/codex-debug-key"
 ```
 
 正常未创建数据时应返回：
@@ -137,7 +149,7 @@ curl.exe -i "https://xx.webber.qzz.io/api/sync/codex-debug-key"
 测试写入：
 
 ```bash
-curl.exe -i -X PUT "https://xx.webber.qzz.io/api/sync/codex-debug-key" ^
+curl.exe -i -X PUT "https://你的-v2-域名/api/sync/codex-debug-key" ^
   -H "content-type: application/json" ^
   --data-binary "{\"shortcuts\":[],\"widgets\":[]}"
 ```

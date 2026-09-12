@@ -89,7 +89,7 @@ docker run -d --name launchpad -p 8080:80 -v "$PWD":/usr/share/nginx/html:ro ngi
 
 1. 进入 Cloudflare Dashboard。
 2. 打开 Workers & Pages。
-3. 选择创建 Worker，并连接 GitHub 仓库 `Swebersmith/browser-start-page`。
+3. 选择创建 Worker，并连接 GitHub 仓库 `Swebersmith/browser-start-page-v2`。
 4. 使用下面的构建配置：
 
 ```txt
@@ -106,7 +106,7 @@ Output directory: dist
 1. 在 Cloudflare Dashboard 创建一个 D1 数据库，建议名称：
 
 ```txt
-browser-start-page-db
+browser-start-page-db-v2
 ```
 
 2. 进入数据库详情，复制 `database_id`。

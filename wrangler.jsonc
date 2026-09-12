@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "browser-start-page",
+  "name": "browser-start-page-v2",
   "main": "src/worker.js",
   "compatibility_date": "2026-06-30",
   "assets": {
@@ -12,8 +12,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "browser-start-page-db",
-      "database_id": "66afa09c-fcd4-408b-9744-9861252ddd5a"
+      "database_name": "browser-start-page-db-v2",
+      "database_id": "TODO_REPLACE_WITH_V2_D1_DATABASE_ID"
     }
   ]
 }
