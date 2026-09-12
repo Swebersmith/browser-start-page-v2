@@ -1,12 +1,11 @@
 /* ==========================================================================
-   小新风快捷首页 · 液态玻璃主题
-   低饱和小新色渐变 + 缓慢流动光斑 + 统一玻璃卡片
+   灏忔柊椋庡揩鎹烽椤?路 娑叉€佺幓鐠冧富棰?   浣庨ケ鍜屽皬鏂拌壊娓愬彉 + 缂撴參娴佸姩鍏夋枒 + 缁熶竴鐜荤拑鍗＄墖
    ========================================================================== */
 
 :root {
   color-scheme: light;
 
-  /* 低饱和小新色 */
+  /* 浣庨ケ鍜屽皬鏂拌壊 */
   --coral: #e0866f;
   --coral-deep: #cf6a52;
   --butter: #edd9a3;
@@ -23,15 +22,23 @@
 
   --line: rgba(59, 57, 54, 0.1);
 
-  /* 玻璃配方 */
+  /* 鐜荤拑閰嶆柟 */
   --glass-bg: linear-gradient(142deg, rgba(255, 255, 255, 0.74), rgba(255, 255, 255, 0.4));
   --glass-bg-soft: linear-gradient(142deg, rgba(255, 255, 255, 0.6), rgba(255, 255, 255, 0.3));
-  /* 下拉菜单用近实心底：父级也有 backdrop-filter，子级模糊拿不到卡片外的背景 */
+  /* 涓嬫媺鑿滃崟鐢ㄨ繎瀹炲績搴曪細鐖剁骇涔熸湁 backdrop-filter锛屽瓙绾фā绯婃嬁涓嶅埌鍗＄墖澶栫殑鑳屾櫙 */
   --menu-bg: rgba(253, 250, 244, 0.97);
   --menu-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0) 58%);
+  /* 绉诲姩绔€ц兘闄嶇骇鐢ㄧ殑涓嶉€忔槑鏇夸唬鑹?*/
+  --glass-solid: linear-gradient(142deg, rgba(255, 255, 255, 0.94), rgba(255, 255, 255, 0.76));
+  --glass-solid-soft: linear-gradient(142deg, rgba(255, 255, 255, 0.91), rgba(255, 255, 255, 0.72));
+  /* 灏忓厓浠剁敤鐨勩€屾棤妯＄硦鐜荤拑銆嶏細鐪佹帀涓€娆?background 閲囨牱锛岃鎰熷嚑涔庝竴鑷?*/
+  --glass-flat: linear-gradient(142deg, rgba(255, 255, 255, 0.78), rgba(255, 255, 255, 0.52));
+  --hero-solid:
+    linear-gradient(142deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.84)),
+    linear-gradient(118deg, rgba(237, 217, 163, 0.3), rgba(166, 201, 222, 0.28));
   --glass-border: rgba(255, 255, 255, 0.78);
   --glass-edge: rgba(255, 255, 255, 0.5);
-  --glass-blur: 22px;
+  --glass-blur: 16px;
   --glass-shadow:
     0 20px 48px rgba(126, 100, 74, 0.14),
     0 3px 10px rgba(126, 100, 74, 0.06);
@@ -76,6 +83,12 @@
   --glass-bg-soft: linear-gradient(142deg, rgba(66, 78, 94, 0.5), rgba(26, 32, 41, 0.36));
   --menu-bg: rgba(28, 34, 43, 0.97);
   --menu-sheen: linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 58%);
+  --glass-solid: linear-gradient(142deg, rgba(74, 86, 102, 0.93), rgba(34, 41, 52, 0.89));
+  --glass-solid-soft: linear-gradient(142deg, rgba(66, 78, 94, 0.91), rgba(30, 37, 47, 0.87));
+  --glass-flat: linear-gradient(142deg, rgba(74, 86, 102, 0.68), rgba(30, 36, 46, 0.54));
+  --hero-solid:
+    linear-gradient(142deg, rgba(78, 90, 106, 0.95), rgba(34, 41, 52, 0.9)),
+    linear-gradient(118deg, rgba(203, 181, 120, 0.14), rgba(123, 163, 189, 0.18));
   --glass-border: rgba(255, 255, 255, 0.16);
   --glass-edge: rgba(255, 255, 255, 0.1);
   --glass-shadow:
@@ -93,7 +106,7 @@
     0 24px 56px rgba(0, 0, 0, 0.44);
 }
 
-/* ---------- 基础 ---------- */
+/* ---------- 鍩虹 ---------- */
 
 * {
   box-sizing: border-box;
@@ -101,6 +114,10 @@
 
 html {
   min-height: 100%;
+  /* 鍘绘帀绉诲姩绔偣鍑绘椂绯荤粺榛樿鐨勮摑鑹?鐏拌壊楂樹寒鏂瑰潡 */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   background:
     radial-gradient(1100px 680px at 10% -4%, #fbe0cd 0%, rgba(251, 224, 205, 0) 62%),
     radial-gradient(980px 660px at 92% 4%, #fdefd0 0%, rgba(253, 239, 208, 0) 64%),
@@ -128,7 +145,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* ---------- 背景：缓慢流动光斑 ---------- */
+/* ---------- 鑳屾櫙锛氱紦鎱㈡祦鍔ㄥ厜鏂?---------- */
 
 .aurora-layer {
   position: fixed;
@@ -136,7 +153,8 @@ body {
   z-index: -2;
   overflow: hidden;
   pointer-events: none;
-  filter: blur(72px);
+  /* 涓嶅啀鐢?filter: blur()锛歳adial-gradient 鏈韩鐨勬煍杈瑰凡缁忓鐢紝
+     鑰屼竴灞傝鐩栧叏灞忕殑 72px 妯＄硦鍦ㄧЩ鍔ㄧ姣忓抚閮借閲嶇畻锛屼唬浠锋瀬楂?*/
 }
 
 .aurora {
@@ -271,29 +289,41 @@ body {
   }
 }
 
-/* ---------- 通用控件 ---------- */
+/* ---------- 閫氱敤鎺т欢 ---------- */
 
 button,
 input,
 select,
 textarea {
   font: inherit;
+  /* 娑堥櫎绉诲姩绔?300ms 鍙屽嚮缂╂斁寤惰繜 */
+  touch-action: manipulation;
+}
+
+button,
+a,
+label,
+summary,
+select {
+  -webkit-tap-highlight-color: transparent;
 }
 
 button {
   cursor: pointer;
 }
 
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible,
+/* 鍙湪閿洏鎿嶄綔鏃舵樉绀虹劍鐐圭幆锛氶紶鏍?瑙︽懜鐐瑰嚮涓嶅啀鍐掑嚭鏂瑰潡 */
+:focus {
+  outline: none;
+}
+
+:focus-visible,
 .import-button:focus-within {
-  outline: 2px solid rgba(123, 169, 198, 0.6);
+  outline: 2px solid rgba(207, 106, 82, 0.6);
   outline-offset: 2px;
 }
 
-/* 所有玻璃卡片共用一份配方 */
+/* 鎵€鏈夌幓鐠冨崱鐗囧叡鐢ㄤ竴浠介厤鏂?*/
 .glass-card,
 .search-zone,
 .widget-card,
@@ -306,7 +336,7 @@ textarea:focus-visible,
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.7);
 }
 
-/* 卡片顶部一道高光 */
+/* 鍗＄墖椤堕儴涓€閬撻珮鍏?*/
 .glass-card::before,
 .search-zone::before,
 .widget-card::before {
@@ -344,7 +374,7 @@ textarea:focus-visible,
   border: 0;
 }
 
-/* ---------- 暗色模式按钮 ---------- */
+/* ---------- 鏆楄壊妯″紡鎸夐挳 ---------- */
 
 .dark-toggle {
   position: fixed;
@@ -357,11 +387,9 @@ textarea:focus-visible,
   place-items: center;
   border: 1px solid var(--glass-border);
   border-radius: 50%;
-  background: var(--glass-bg-soft);
+  background: var(--glass-flat);
   color: var(--ink);
   box-shadow: var(--glass-shadow), var(--glass-inner);
-  backdrop-filter: blur(16px) saturate(1.6);
-  -webkit-backdrop-filter: blur(16px) saturate(1.6);
   font-size: 14px;
   font-weight: 800;
   transition:
@@ -373,7 +401,7 @@ textarea:focus-visible,
   transform: translateY(-2px) scale(1.04);
 }
 
-/* ---------- 页面骨架 ---------- */
+/* ---------- 椤甸潰楠ㄦ灦 ---------- */
 
 .shell {
   position: relative;
@@ -386,7 +414,7 @@ textarea:focus-visible,
   animation: page-enter 0.6s var(--ease-soft) both;
 }
 
-/* ---------- 顶部：日期 + 一句文案 ---------- */
+/* ---------- 椤堕儴锛氭棩鏈?+ 涓€鍙ユ枃妗?---------- */
 
 .topbar {
   order: 1;
@@ -394,7 +422,7 @@ textarea:focus-visible,
   text-align: center;
 }
 
-/* 站名入口（= 浏览器标签页标题） */
+/* 绔欏悕鍏ュ彛锛? 娴忚鍣ㄦ爣绛鹃〉鏍囬锛?*/
 .site-name {
   display: inline-flex;
   align-items: center;
@@ -403,10 +431,8 @@ textarea:focus-visible,
   padding: 5px 14px;
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-pill);
-  background: var(--glass-bg-soft);
+  background: var(--glass-flat);
   box-shadow: var(--glass-inner);
-  backdrop-filter: blur(14px) saturate(1.6);
-  -webkit-backdrop-filter: blur(14px) saturate(1.6);
   color: var(--muted);
   font-size: 12px;
   font-weight: 700;
@@ -426,7 +452,7 @@ textarea:focus-visible,
   opacity: 0.65;
 }
 
-/* 日期 + 时间 */
+/* 鏃ユ湡 + 鏃堕棿 */
 .clock-line {
   display: flex;
   flex-wrap: wrap;
@@ -452,7 +478,7 @@ textarea:focus-visible,
   line-height: 1;
 }
 
-/* 每日台词 */
+/* 姣忔棩鍙拌瘝 */
 .daily-quote {
   max-width: 640px;
   margin: 0 auto;
@@ -479,10 +505,8 @@ textarea:focus-visible,
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-pill);
   padding: 0 16px;
-  background: var(--glass-bg-soft);
+  background: var(--glass-flat);
   box-shadow: var(--glass-inner);
-  backdrop-filter: blur(12px) saturate(1.5);
-  -webkit-backdrop-filter: blur(12px) saturate(1.5);
   color: var(--muted);
   font-size: 12.5px;
   font-weight: 700;
@@ -503,7 +527,7 @@ textarea:focus-visible,
   line-height: 1.45;
 }
 
-/* ---------- 核心：搜索玻璃卡 ---------- */
+/* ---------- 鏍稿績锛氭悳绱㈢幓鐠冨崱 ---------- */
 
 .search-zone {
   order: 2;
@@ -511,7 +535,7 @@ textarea:focus-visible,
   margin: 46px 0 20px;
   padding: 26px 20px 16px;
   border-radius: 30px;
-  /* 主角卡：玻璃更厚，带一层小新色 */
+  /* 涓昏鍗★細鐜荤拑鏇村帤锛屽甫涓€灞傚皬鏂拌壊 */
   border-color: rgba(255, 255, 255, 0.9);
   background:
     linear-gradient(142deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.54)),
@@ -533,7 +557,7 @@ textarea:focus-visible,
     linear-gradient(118deg, rgba(203, 181, 120, 0.14), rgba(123, 163, 189, 0.18));
 }
 
-/* 聚焦时边缘光加强 + 轻微液态流动 */
+/* 鑱氱劍鏃惰竟缂樺厜鍔犲己 + 杞诲井娑叉€佹祦鍔?*/
 .search-zone:focus-within {
   border-color: rgba(255, 255, 255, 0.95);
   box-shadow: var(--focus-glow), var(--glass-inner);
@@ -578,7 +602,7 @@ textarea:focus-visible,
   }
 }
 
-/* 春日部防卫队：趴在搜索卡上沿 */
+/* 鏄ユ棩閮ㄩ槻鍗槦锛氳洞鍦ㄦ悳绱㈠崱涓婃部 */
 .crew-strip {
   position: absolute;
   top: 0;
@@ -626,7 +650,7 @@ textarea:focus-visible,
   object-fit: cover;
 }
 
-/* 高低错落，像真的趴在上面 */
+/* 楂樹綆閿欒惤锛屽儚鐪熺殑瓒村湪涓婇潰 */
 .crew-shinnosuke {
   transform: translateY(3px);
 }
@@ -668,7 +692,7 @@ textarea:focus-visible,
   }
 }
 
-/* 小白爪印 */
+/* 灏忕櫧鐖嵃 */
 .paw-mark {
   position: absolute;
   top: -12px;
@@ -680,10 +704,8 @@ textarea:focus-visible,
   place-items: center;
   border: 1px solid var(--glass-border);
   border-radius: 46% 54% 52% 48%;
-  background: var(--glass-bg);
+  background: var(--glass-flat);
   box-shadow: var(--glass-shadow), var(--glass-inner);
-  backdrop-filter: blur(12px) saturate(1.5);
-  -webkit-backdrop-filter: blur(12px) saturate(1.5);
   transform: rotate(-8deg);
   animation: paw-bob 6.5s ease-in-out infinite;
 }
@@ -713,7 +735,7 @@ textarea:focus-visible,
   gap: 10px;
 }
 
-/* 引擎选择 */
+/* 寮曟搸閫夋嫨 */
 .engine-select {
   position: relative;
   min-width: 0;
@@ -817,8 +839,8 @@ textarea:focus-visible,
   border-radius: 20px;
   background: var(--menu-sheen), var(--menu-bg);
   box-shadow: var(--glass-shadow), var(--glass-inner);
-  backdrop-filter: blur(24px) saturate(1.8);
-  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  backdrop-filter: blur(18px) saturate(1.7);
+  -webkit-backdrop-filter: blur(18px) saturate(1.7);
   opacity: 0;
   pointer-events: none;
   transform: translateY(-8px) scale(0.97);
@@ -919,7 +941,7 @@ textarea:focus-visible,
   background: rgba(255, 255, 255, 0.14);
 }
 
-/* 搜索输入 */
+/* 鎼滅储杈撳叆 */
 .search-input-wrap {
   position: relative;
   display: flex;
@@ -1052,7 +1074,7 @@ textarea:focus-visible,
   transform: translateY(0) scale(0.99);
 }
 
-/* 快捷切换引擎 */
+/* 蹇嵎鍒囨崲寮曟搸 */
 .quick-engines {
   position: relative;
   z-index: 2;
@@ -1173,7 +1195,7 @@ textarea:focus-visible,
   background: linear-gradient(140deg, #3d444d, #24292f);
 }
 
-/* 搜索历史 */
+/* 鎼滅储鍘嗗彶 */
 .search-history {
   position: absolute;
   top: calc(100% + 10px);
@@ -1187,8 +1209,8 @@ textarea:focus-visible,
   border-radius: 18px;
   background: var(--menu-sheen), var(--menu-bg);
   box-shadow: var(--glass-shadow), var(--glass-inner);
-  backdrop-filter: blur(24px) saturate(1.8);
-  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  backdrop-filter: blur(18px) saturate(1.7);
+  -webkit-backdrop-filter: blur(18px) saturate(1.7);
 }
 
 .search-history[hidden] {
@@ -1230,7 +1252,7 @@ textarea:focus-visible,
   color: var(--coral-deep);
 }
 
-/* ---------- 工具条 ---------- */
+/* ---------- 宸ュ叿鏉?---------- */
 
 .toolbar {
   order: 3;
@@ -1267,7 +1289,7 @@ textarea:focus-visible,
   display: none;
 }
 
-/* ---------- 快捷方式：小尺寸玻璃胶囊 ---------- */
+/* ---------- 蹇嵎鏂瑰紡锛氬皬灏哄鐜荤拑鑳跺泭 ---------- */
 
 .shortcut-grid {
   order: 4;
@@ -1287,10 +1309,9 @@ textarea:focus-visible,
   min-height: 74px;
   border: 1px solid var(--glass-border);
   border-radius: 20px;
-  background: var(--glass-bg-soft);
+  /* 蹇嵎鏂瑰紡鏁伴噺鏈€澶氾紝鍘绘帀 backdrop-filter锛?     鑳屾櫙鍏夋枒涓€鐩村湪鍔紝妯＄硦浼氳閫愬抚閲嶇畻锛岃€岃繖閲屽嚑涔庣湅涓嶅嚭宸埆 */
+  background: var(--glass-flat);
   box-shadow: var(--glass-shadow), var(--glass-inner);
-  backdrop-filter: blur(18px) saturate(1.6);
-  -webkit-backdrop-filter: blur(18px) saturate(1.6);
   overflow: hidden;
   animation: card-enter 0.5s var(--ease-soft) backwards;
   transition:
@@ -1298,7 +1319,7 @@ textarea:focus-visible,
     box-shadow 0.26s var(--ease-soft);
 }
 
-/* 高光扫过 */
+/* 楂樺厜鎵繃 */
 .shortcut-card::after {
   position: absolute;
   inset: 0;
@@ -1322,7 +1343,7 @@ textarea:focus-visible,
   border-color: rgba(237, 217, 163, 0.9);
   background:
     linear-gradient(142deg, rgba(237, 217, 163, 0.4), rgba(255, 255, 255, 0.28)),
-    var(--glass-bg-soft);
+    var(--glass-flat);
 }
 
 .shortcut-card:hover {
@@ -1487,7 +1508,7 @@ textarea:focus-visible,
   opacity: 1;
 }
 
-/* ---------- 小组件 ---------- */
+/* ---------- 灏忕粍浠?---------- */
 
 .widget-board {
   order: 5;
@@ -1609,7 +1630,7 @@ textarea:focus-visible,
   opacity: 1;
 }
 
-/* ---------- 底部信息区：天气 + 旧日历 ---------- */
+/* ---------- 搴曢儴淇℃伅鍖猴細澶╂皵 + 鏃ф棩鍘?---------- */
 
 .weather-stage {
   order: 6;
@@ -1628,7 +1649,7 @@ textarea:focus-visible,
   padding: 20px;
 }
 
-/* 天气 */
+/* 澶╂皵 */
 .weather-panel {
   display: grid;
   align-content: start;
@@ -1714,7 +1735,7 @@ textarea:focus-visible,
   opacity: 0.6;
 }
 
-/* 旧日历 */
+/* 鏃ф棩鍘?*/
 .today-history-panel {
   display: grid;
   align-content: start;
@@ -1848,7 +1869,7 @@ textarea:focus-visible,
   overflow-wrap: anywhere;
 }
 
-/* ---------- 骨架屏 ---------- */
+/* ---------- 楠ㄦ灦灞?---------- */
 
 .skeleton {
   display: none;
@@ -1932,7 +1953,7 @@ textarea:focus-visible,
   gap: 6px;
 }
 
-/* 加载中：隐藏真实内容，显示骨架 */
+/* 鍔犺浇涓細闅愯棌鐪熷疄鍐呭锛屾樉绀洪鏋?*/
 .weather-panel.is-loading .weather-body,
 .today-history-panel.is-loading .today-history-groups {
   display: none;
@@ -1943,7 +1964,7 @@ textarea:focus-visible,
   display: grid;
 }
 
-/* ---------- 同步面板 ---------- */
+/* ---------- 鍚屾闈㈡澘 ---------- */
 
 .sync-panel {
   order: 7;
@@ -2024,7 +2045,7 @@ textarea:focus-visible,
   line-height: 1.55;
 }
 
-/* 未启用同步：柔和，不用警告色 */
+/* 鏈惎鐢ㄥ悓姝ワ細鏌斿拰锛屼笉鐢ㄨ鍛婅壊 */
 .sync-panel p[data-tone="neutral"] {
   color: var(--muted);
 }
@@ -2041,7 +2062,7 @@ textarea:focus-visible,
   color: var(--coral-deep);
 }
 
-/* ---------- 弹窗 ---------- */
+/* ---------- 寮圭獥 ---------- */
 
 dialog {
   width: min(440px, calc(100% - 30px));
@@ -2054,8 +2075,8 @@ dialog {
 
 dialog::backdrop {
   background: rgba(59, 57, 54, 0.34);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
 }
 
 .dialog-card {
@@ -2194,7 +2215,7 @@ dialog::backdrop {
   color: var(--coral-deep);
 }
 
-/* ---------- 动效 ---------- */
+/* ---------- 鍔ㄦ晥 ---------- */
 
 @keyframes page-enter {
   from {
@@ -2261,7 +2282,7 @@ dialog[open] .dialog-card {
   }
 }
 
-/* ---------- 响应式 ---------- */
+/* ---------- 鍝嶅簲寮?---------- */
 
 @media (max-width: 860px) {
   .search-form {
@@ -2327,5 +2348,152 @@ dialog[open] .dialog-card {
     right: 14px;
     width: 40px;
     height: 40px;
+  }
+}
+
+/* ==========================================================================
+   瑙︽懜璁惧 / 灏忓睆鎬ц兘闄嶇骇
+   backdrop-filter 涓庡ぇ闈㈢Н妯＄硦鏄Щ鍔?GPU 涓婃渶澶х殑寮€閿€锛岃繖閲屾崲鎴愪笉閫忔槑鐨?   鍒嗗眰鑳屾櫙锛岃鎰熸帴杩戜絾涓嶅啀閫愬抚閲嶇畻锛涘悓鏃跺仠鎺夋寔缁繍琛岀殑鍏夋枒涓庡ご鍍忔诞鍔ㄥ姩鐢汇€?   ========================================================================== */
+
+@media (pointer: coarse), (max-width: 860px) {
+  .glass-card,
+  .search-zone,
+  .widget-card,
+  .shortcut-card,
+  .dialog-card,
+  .dark-toggle,
+  .site-name,
+  .quote-refresh,
+  .paw-mark,
+  .engine-menu,
+  .search-history {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .glass-card,
+  .widget-card,
+  .dialog-card {
+    background: var(--glass-solid);
+  }
+
+  .shortcut-card {
+    background: var(--glass-solid-soft);
+  }
+
+  .search-zone {
+    background: var(--hero-solid);
+  }
+
+  .dark-toggle,
+  .site-name,
+  .quote-refresh,
+  .paw-mark {
+    background: var(--glass-solid-soft);
+  }
+
+  /* 澶ц壊鍧楀姩鐢诲湪瑙︽懜璁惧涓婂仠鎺夛紝鑳屾櫙杞负闈欐€佹笎鍙?*/
+  .aurora,
+  .crew-member,
+  .paw-mark {
+    animation: none;
+  }
+
+  /* 鍑忓皯闃村奖灞傜骇锛岄檷浣庢瘡甯у悎鎴愬紑閿€ */
+  .glass-card,
+  .widget-card,
+  .shortcut-card,
+  .search-zone {
+    box-shadow:
+      0 10px 22px rgba(126, 100, 74, 0.13),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  }
+
+  :root[data-theme="dark"] .glass-card,
+  :root[data-theme="dark"] .widget-card,
+  :root[data-theme="dark"] .shortcut-card,
+  :root[data-theme="dark"] .search-zone {
+    box-shadow:
+      0 10px 22px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  }
+
+  /* 鍏ㄥ睆鍣偣灞傚湪绉诲姩绔緱涓嶅伩澶?*/
+  .grain-layer {
+    display: none;
+  }
+}
+
+/* 瑙︽懜璁惧娌℃湁鐪熸鐨?hover锛氶伩鍏嶇偣涓€涓嬩箣鍚庡崱鐗囧崱鍦ㄣ€屾偓娴€嶇姸鎬?*/
+@media (hover: none) {
+  .shortcut-card:hover {
+    transform: none;
+  }
+
+  .shortcut-card:hover::after {
+    transform: translateX(-130%);
+  }
+
+  .shortcut-card:hover .shortcut-icon {
+    transform: none;
+  }
+
+  .shortcut-card:hover .pin-shortcut,
+  .shortcut-card:hover .edit-shortcut {
+    opacity: 0;
+  }
+
+  .shortcut-card.is-pinned .pin-shortcut {
+    opacity: 1;
+  }
+
+  .widget-card:hover {
+    transform: none;
+  }
+
+  .widget-card:hover .widget-ribbon {
+    width: 46px;
+  }
+
+  .widget-card:hover .edit-widget {
+    opacity: 0;
+  }
+
+  .engine-select-button:hover,
+  .search-input-wrap input:focus,
+  .quick-engines button:hover,
+  .tabs button:hover,
+  .actions button:hover,
+  .section-head button:hover,
+  .sync-panel button:hover,
+  .weather-refresh:hover,
+  .icon-button:hover,
+  .search-button:hover,
+  .primary-button:hover,
+  .dark-toggle:hover,
+  .site-name:hover,
+  .quote-refresh:hover {
+    transform: none;
+  }
+
+  /* 鐢ㄦ寜涓嬪弽棣堟浛浠?hover 鍙嶉 */
+  .shortcut-card:active,
+  .widget-card:active {
+    transform: scale(0.975);
+  }
+
+  .quick-engines button:active,
+  .tabs button:active,
+  .actions button:active,
+  .import-button:active,
+  .section-head button:active,
+  .sync-panel button:active,
+  .weather-refresh:active,
+  .icon-button:active,
+  .dialog-actions button:active,
+  .quote-refresh:active,
+  .dark-toggle:active,
+  .site-name:active {
+    transform: scale(0.95);
   }
 }

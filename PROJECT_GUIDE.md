@@ -193,6 +193,40 @@ await db.prepare(schemaSql).run();
 - 天气城市手动选择，避免每次依赖浏览器定位。
 - D1 数据版本号，解决多设备同时编辑覆盖问题。
 
+## 性能约束（改样式前先看这里）
+
+这个页面的视觉成本几乎全在模糊上，几条硬约束：
+
+1. **不要给元素随便加 `backdrop-filter`。**
+   背景的 `.aurora` 光斑一直在缓慢移动，凡是压在它上面的玻璃元素，模糊每帧都要重算。
+   目前只在少数几处保留（`styles.css` 里搜 `backdrop-filter` 可查）：
+   `.search-zone`、`.widget-card`、`.glass-card`、两个下拉菜单、弹窗遮罩。
+   快捷方式卡、小圆按钮、站名胶囊用的是 `--glass-flat`（不带模糊的玻璃底色），
+   观感接近但省掉一次背景采样。
+
+2. **不要给大面积元素加 `filter: blur()`。**
+   `.aurora-layer` 早期用过 `blur(72px)`，那层覆盖全屏、还会被动画带着重算，
+   在移动端是最大的单点开销。`radial-gradient` 本身的柔边已经够用，已去掉。
+
+3. **触摸设备走降级分支。**
+   `@media (pointer: coarse), (max-width: 860px)` 里会把所有 `backdrop-filter`
+   关掉、换不透明底、停掉光斑与头像浮动动画、隐藏噪点层。
+   这段必须留在 `styles.css` 末尾，否则会被前面的深色主题规则覆盖。
+
+4. **动画只用 `transform` / `translate` / `opacity`**，不要动 `width`、`background-position`。
+
+5. **`assets/` 里的大图不进 dist。**
+   `scripts/build.mjs` 会扫描 `index.html` / `styles.css` / `script.js` 实际引用到的
+   资源再复制，`header_*.png`、`custom/*.jpg` 只是制作头像用的源图。
+   头像已转成 128px WebP（`assets/avatars/*.webp`），整站发布体积约 170KB。
+
+6. **移动端触摸体验**
+   - `html` 上设了 `-webkit-tap-highlight-color: transparent`，去掉点击时的系统蓝色方块；
+   - 交互元素带 `touch-action: manipulation`，去掉 300ms 双击缩放延迟；
+   - `:focus` 关闭轮廓、只留 `:focus-visible`，鼠标/触摸点击不会再冒出方框；
+   - `@media (hover: none)` 里中和了所有 hover 效果，改用 `:active` 缩放反馈，
+     避免手机上点一下之后卡片卡在悬浮状态。
+
 ## 修改时注意
 
 - 改页面结构：优先动 `index.html`。

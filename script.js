@@ -733,6 +733,9 @@ function getInitials(name) {
   return Array.from(clean).slice(0, 2).join("");
 }
 
+let clockTimer = null;
+let lastClockKey = "";
+
 function updateClock() {
   const now = new Date();
   const timeText = now.toLocaleTimeString("zh-CN", {
@@ -740,6 +743,12 @@ function updateClock() {
     minute: "2-digit",
     hour12: false,
   });
+
+  // 界面只显示到分钟，同一分钟内不再重复格式化日期 / 写 DOM
+  const clockKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()} ${timeText}`;
+  if (clockKey === lastClockKey) return;
+  lastClockKey = clockKey;
+
   const dateText = now.toLocaleDateString("zh-CN", {
     year: "numeric",
     month: "long",
@@ -748,6 +757,15 @@ function updateClock() {
   const weekText = now.toLocaleDateString("zh-CN", { weekday: "long" });
   elements.stageTimeText.textContent = timeText;
   elements.dateText.textContent = `${dateText} ${weekText}`;
+}
+
+/* 对齐到整分钟再更新，代替原本每秒触发一次的 setInterval */
+function scheduleClock() {
+  window.clearTimeout(clockTimer);
+  updateClock();
+  const now = new Date();
+  const delay = (60 - now.getSeconds()) * 1000 - now.getMilliseconds() + 60;
+  clockTimer = window.setTimeout(scheduleClock, delay);
 }
 
 /* ---------- 站名（浏览器标签页标题） ---------- */
@@ -1611,8 +1629,10 @@ elements.quoteRefreshButton.addEventListener("click", nextQuote);
 
 applySiteName(loadSiteName());
 renderQuote();
-updateClock();
-setInterval(updateClock, 1000);
+scheduleClock();
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) scheduleClock();
+});
 initDarkMode();
 loadWeather();
 loadTodayHistory();
