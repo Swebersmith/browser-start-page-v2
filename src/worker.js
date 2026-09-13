@@ -68,6 +68,7 @@ function isValidPayload(payload) {
     (!payload.engines || Array.isArray(payload.engines)) &&
     (!payload.siteName || typeof payload.siteName === "string") &&
     (!payload.defaultCategory || typeof payload.defaultCategory === "string") &&
+    (!payload.searchTarget || typeof payload.searchTarget === "string") &&
     JSON.stringify(payload).length <= MAX_PAYLOAD_BYTES
   );
 }
@@ -84,6 +85,7 @@ function buildSyncPayload(payload) {
     searchHistory: Array.isArray(payload.searchHistory) ? payload.searchHistory.slice(0, 8) : [],
     siteName: typeof payload.siteName === "string" ? payload.siteName.slice(0, 30) : "",
     defaultCategory: typeof payload.defaultCategory === "string" ? payload.defaultCategory.slice(0, 16) : "",
+    searchTarget: payload.searchTarget === "_blank" ? "_blank" : "_self",
     engines: Array.isArray(payload.engines)
       ? payload.engines
           .filter((item) => item && typeof item === "object" && item.url)

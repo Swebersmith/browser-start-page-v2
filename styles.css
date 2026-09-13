@@ -914,7 +914,7 @@ button {
   position: relative;
   z-index: 6;
   display: grid;
-  grid-template-columns: 196px minmax(0, 1fr) 112px;
+  grid-template-columns: 196px minmax(0, 1fr) 112px auto;
   align-items: center;
   gap: 10px;
 }
@@ -1207,6 +1207,55 @@ button {
     transform 0.2s var(--ease-soft),
     box-shadow 0.2s var(--ease-soft),
     filter 0.2s ease;
+}
+
+/* 搜索打开方式：本页加载 / 新标签页 */
+.search-target {
+  display: inline-flex;
+  min-height: 62px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-inner);
+  padding: 0 14px;
+  background: var(--glass-flat);
+  box-shadow: var(--glass-inner);
+  color: var(--muted);
+  font-size: 12.6px;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+  transition:
+    transform 0.2s var(--ease-soft),
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s var(--ease-soft);
+}
+
+.search-target-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.search-target:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ink);
+}
+
+:root[data-theme="dark"] .search-target:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* 新标签页模式：给一点小新红做提示 */
+.search-target[aria-pressed="true"] {
+  border-color: rgba(207, 106, 82, 0.5);
+  background: linear-gradient(140deg, rgba(224, 134, 111, 0.22), rgba(224, 134, 111, 0.12));
+  color: var(--coral-deep);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 6px 16px rgba(207, 106, 82, 0.16);
 }
 
 :root[data-engine="google"] .search-button {
@@ -2502,8 +2551,22 @@ dialog[open] .dialog-card {
 /* ---------- 响应式 ---------- */
 
 @media (max-width: 860px) {
+  /* 窄屏：引擎与输入框各占一行，「出发」和打开方式切换并排 */
   .search-form {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .engine-select,
+  .search-input-wrap {
+    grid-column: 1 / -1;
+  }
+
+  .search-button {
+    grid-column: 1;
+  }
+
+  .search-target {
+    grid-column: 2;
   }
 
   .engine-select-button {
@@ -2739,7 +2802,8 @@ dialog[open] .dialog-card {
   .primary-button:hover,
   .dark-toggle:hover,
   .settings-value:hover,
-  .quote-refresh:hover {
+  .quote-refresh:hover,
+  .search-target:hover {
     transform: none;
   }
 

@@ -204,6 +204,9 @@ const elements = {
   weatherHumidity: document.querySelector("#weatherHumidity"),
   weatherWind: document.querySelector("#weatherWind"),
   defaultCategorySelect: document.querySelector("#defaultCategorySelect"),
+  searchTargetButton: document.querySelector("#searchTargetButton"),
+  searchTargetIcon: document.querySelector("#searchTargetIcon"),
+  searchTargetText: document.querySelector("#searchTargetText"),
   manageEnginesButton: document.querySelector("#manageEnginesButton"),
   engineDialog: document.querySelector("#engineDialog"),
   engineForm: document.querySelector("#engineForm"),
@@ -328,17 +331,30 @@ function saveCustomEngines() {
 }
 
 function loadPrefs() {
+  const base = { defaultCategory: "", searchTarget: "_self" };
   const raw = localStorage.getItem(PREF_KEY);
-  if (!raw) return { defaultCategory: "" };
+  if (!raw) return base;
 
   try {
     const parsed = JSON.parse(raw);
     return {
       defaultCategory: typeof parsed?.defaultCategory === "string" ? parsed.defaultCategory.slice(0, 16) : "",
+      searchTarget: parsed?.searchTarget === "_blank" ? "_blank" : "_self",
     };
   } catch {
-    return { defaultCategory: "" };
+    return base;
   }
+}
+
+/* 搜索结果的打开方式：_self = 当前页面，_blank = 新标签页 */
+function getSearchTarget() {
+  return prefs.searchTarget === "_blank" ? "_blank" : "_self";
+}
+
+function setSearchTarget(target) {
+  prefs = { ...prefs, searchTarget: target === "_blank" ? "_blank" : "_self" };
+  savePrefs();
+  renderSearchTarget();
 }
 
 function savePrefs() {
@@ -463,14 +479,16 @@ function runSearch(query) {
   hideSearchHistory();
   addSearchHistory(value);
   flushCloudData();
+
+  const target = getSearchTarget();
   if (looksLikeUrl(value)) {
-    window.open(normalizeUrl(value), "_self");
+    window.open(normalizeUrl(value), target);
     return;
   }
 
   const engines = getEngines();
   const engine = engines.find((item) => item.id === elements.engineSelect.value) || engines[0];
-  window.open(`${engine.url}${encodeURIComponent(value)}`, "_self");
+  window.open(`${engine.url}${encodeURIComponent(value)}`, target);
 }
 
 function setSyncStatus(message, tone = "neutral") {
@@ -485,6 +503,7 @@ function getSyncPayload() {
     searchHistory,
     siteName: loadSiteName(),
     defaultCategory: prefs.defaultCategory || "",
+    searchTarget: getSearchTarget(),
     engines: customEngines,
   };
 }
@@ -545,9 +564,13 @@ function applyRemotePayload(payload) {
   }
   if (typeof payload.defaultCategory === "string") {
     prefs = { ...prefs, defaultCategory: payload.defaultCategory.slice(0, 16) };
-    localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
     selectedCategory = prefs.defaultCategory || ALL_CATEGORY;
   }
+  if (payload.searchTarget === "_blank" || payload.searchTarget === "_self") {
+    prefs = { ...prefs, searchTarget: payload.searchTarget };
+  }
+  localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
+  renderSearchTarget();
   saveShortcuts();
   saveWidgets();
   saveSearchHistory({ sync: false });
@@ -956,6 +979,23 @@ function setDefaultCategory(value) {
   savePrefs();
   selectedCategory = category || ALL_CATEGORY;
   renderShortcutArea();
+}
+
+/* ---------- 搜索结果打开方式 ---------- */
+
+function renderSearchTarget() {
+  const isNewTab = getSearchTarget() === "_blank";
+  if (elements.searchTargetIcon) elements.searchTargetIcon.textContent = isNewTab ? "↗" : "→";
+  if (elements.searchTargetText) elements.searchTargetText.textContent = isNewTab ? "新标签页" : "本页打开";
+  elements.searchTargetButton?.setAttribute("aria-pressed", String(isNewTab));
+  elements.searchTargetButton?.setAttribute(
+    "title",
+    isNewTab ? "当前：在新标签页打开搜索结果（点击改为本页打开）" : "当前：在本页打开搜索结果（点击改为新标签页）",
+  );
+}
+
+function toggleSearchTarget() {
+  setSearchTarget(getSearchTarget() === "_blank" ? "_self" : "_blank");
 }
 
 /* ---------- 自定义搜索引擎 ---------- */
@@ -2086,6 +2126,7 @@ elements.quoteRefreshButton.addEventListener("click", renderQuote);
 elements.defaultCategorySelect.addEventListener("change", (event) => {
   setDefaultCategory(event.target.value);
 });
+elements.searchTargetButton.addEventListener("click", toggleSearchTarget);
 elements.manageEnginesButton.addEventListener("click", openEngineDialog);
 elements.engineForm.addEventListener("submit", saveEnginesFromDialog);
 elements.addEngineRowButton.addEventListener("click", () => {
@@ -2101,6 +2142,7 @@ elements.cancelAiDialogButton.addEventListener("click", closeAiDialog);
 
 applySiteName(loadSiteName());
 renderQuote();
+renderSearchTarget();
 scheduleClock();
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) scheduleClock();

@@ -164,6 +164,14 @@ CREATE TABLE IF NOT EXISTS sync_profiles (
 - **搜索引擎**：自定义搜索引擎（名称 / 图标文字 / 搜索地址），会追加到搜索框
   左侧的切换菜单里，也会同步。
 
+另外，搜索框右侧「出发」旁边有一个**打开方式**切换按钮：
+
+- `→ 本页打开`：搜索结果在当前页面加载（`window.open(url, "_self")`）。
+- `↗ 新标签页`：搜索结果在新标签页打开（`window.open(url, "_blank")`）。
+
+两种状态存在 `prefs.searchTarget`（`_self` / `_blank`），跟随同步码同步。
+`runSearch()` 里的网址直跳和搜索引擎跳转都会走这个设置。
+
 ## 同步排错
 
 如果页面提示同步失败，优先检查 API：
