@@ -901,40 +901,6 @@ button {
   }
 }
 
-/* 小白爪印 */
-.paw-mark {
-  position: absolute;
-  top: -12px;
-  right: 34px;
-  z-index: 3;
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border: 1px solid var(--glass-border);
-  border-radius: 46% 54% 52% 48%;
-  background: var(--glass-flat);
-  box-shadow: var(--glass-shadow), var(--glass-inner);
-  transform: rotate(-8deg);
-  animation: paw-bob 6.5s ease-in-out infinite;
-}
-
-.paw-mark svg {
-  width: 20px;
-  height: 20px;
-  fill: var(--coral);
-}
-
-@keyframes paw-bob {
-  0%,
-  100% {
-    transform: rotate(-8deg) translateY(0);
-  }
-  50% {
-    transform: rotate(-4deg) translateY(-4px);
-  }
-}
-
 .search-form {
   position: relative;
   z-index: 6;
@@ -2581,10 +2547,6 @@ html:has(dialog[open]) {
     min-height: 48px;
   }
 
-  .paw-mark {
-    right: 20px;
-  }
-
   /* 引擎编辑行：名称/图标/删除一行，网址单独占一行 */
   .engine-row {
     grid-template-columns: minmax(0, 1fr) 58px 34px;
@@ -2713,7 +2675,6 @@ html:has(dialog[open]) {
   .dark-toggle,
   .settings-value,
   .quote-refresh,
-  .paw-mark,
   .engine-menu,
   .search-history {
     backdrop-filter: none;
@@ -2736,15 +2697,13 @@ html:has(dialog[open]) {
 
   .dark-toggle,
   .settings-value,
-  .quote-refresh,
-  .paw-mark {
+  .quote-refresh {
     background: var(--glass-solid-soft);
   }
 
   /* 大色块动画在触摸设备上停掉，背景转为静态渐变 */
   .aurora,
-  .crew-member,
-  .paw-mark {
+  .crew-member {
     animation: none;
   }
 

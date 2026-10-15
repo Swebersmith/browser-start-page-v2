@@ -355,6 +355,25 @@ function closeSurface(dialog) {
 }
 
 document.querySelectorAll("dialog").forEach((dialog) => {
+  let startedOnBackdrop = false;
+  const isBackdropPoint = (event) => {
+    if (event.target !== dialog) return false;
+    const rect = dialog.getBoundingClientRect();
+    return event.clientX < rect.left || event.clientX > rect.right ||
+      event.clientY < rect.top || event.clientY > rect.bottom;
+  };
+  // 按下、松开都在弹窗外才关闭，避免从输入框拖选文字到外部时误退出。
+  dialog.addEventListener("pointerdown", (event) => {
+    startedOnBackdrop = event.isPrimary && event.button === 0 && isBackdropPoint(event);
+  });
+  dialog.addEventListener("pointercancel", () => {
+    startedOnBackdrop = false;
+  });
+  dialog.addEventListener("click", (event) => {
+    const dismiss = startedOnBackdrop && isBackdropPoint(event);
+    startedOnBackdrop = false;
+    if (dismiss) closeSurface(dialog);
+  });
   dialog.addEventListener("submit", (event) => {
     if (!dialogScenes.get(dialog)?.closing) return;
     event.preventDefault();
