@@ -30,7 +30,7 @@
 - 快捷方式分组、添加、编辑、删除、导入、导出。
 - 自定义小组件：便签、倒计时、链接。
 - 当前时间和天气面板。
-- 蜡笔小新风格图片横幅和插画视觉。
+- 五个角色与小白趴在搜索框上沿的透明简笔插画。
 - 多设备同步：输入同一个同步码后，不同设备会同步快捷方式和小组件。
 
 ## 文件结构
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS sync_profiles (
   "shortcuts": [],
   "widgets": [],
   "searchHistory": [],
-  "siteName": "小新风快捷首页",
+  "siteName": "快捷首页",
   "defaultCategory": "常用",
   "engines": []
 }
@@ -157,9 +157,10 @@ CREATE TABLE IF NOT EXISTS sync_profiles (
 
 ## 偏好设置
 
-页面底部「偏好设置」卡片里可以改：
+页面底部「设置与同步」默认收起为一行，展开后可以修改偏好并管理多设备同步：
 
 - **站名**：即浏览器标签页标题（`document.title`），会跟随同步码同步。
+  默认是「快捷首页」；`index.html` 的 head 内联脚本会在样式与主脚本加载前读取本机保存的名称，刷新时直接显示已设置的站名。已有自定义站名继续保留。
 - **默认分组**：进入页面时默认选中哪个快捷方式分组；分组被删掉后自动回退到「全部」。
 - **搜索引擎**：自定义搜索引擎（名称 / 图标文字 / 搜索地址），会追加到搜索框
   左侧的切换菜单里，也会同步。
@@ -248,7 +249,7 @@ await db.prepare(schemaSql).run();
 
 3. **触摸设备走降级分支。**
    `@media (pointer: coarse), (max-width: 860px)` 里会把所有 `backdrop-filter`
-   关掉、换不透明底、停掉光斑与头像浮动动画、隐藏噪点层。
+   关掉、换不透明底、停掉光斑动画、隐藏噪点层。
    这段必须留在 `styles.css` 末尾，否则会被前面的深色主题规则覆盖。
 
 4. **动画只用 `transform` / `translate` / `opacity`**，不要动 `width`、`background-position`。
@@ -256,7 +257,7 @@ await db.prepare(schemaSql).run();
 5. **`assets/` 里的大图不进 dist。**
    `scripts/build.mjs` 会扫描 `index.html` / `styles.css` / `script.js` 实际引用到的
    资源再复制，`header_*.png`、`custom/*.jpg` 只是制作头像用的源图。
-   头像已转成 128px WebP（`assets/avatars/*.webp`），整站发布体积约 170KB。
+   角色改为一张带透明通道的 1280×241 WebP（`assets/illustrations/kasukabe-crew.webp`，约 86KB），没有持续动画。生成提示词保存在同目录的 `README.md`，原来的头像与源图保留但不进入构建产物。
 
 6. **移动端触摸体验**
    - `html` 上设了 `-webkit-tap-highlight-color: transparent`，去掉点击时的系统蓝色方块；
@@ -272,6 +273,7 @@ await db.prepare(schemaSql).run();
 - 弹窗统一走 `openSurface()` / `closeSurface()`，对弹窗本身做开合动画，表单在原生 `close` 事件后才重置。关闭时恢复触发按钮焦点，Escape 和点击外部遮罩同样走退出动画；仅在按下与松开都位于弹窗外时关闭，内部点击或向外拖选文字不会误退出。
 - 弹窗最大高度使用 `100dvh`（保留 `100vh` 回退），打开期间锁定页面滚动；触摸设备停用遮罩模糊并使用实心底色。
 - 手机端缩短时长，可见元素最多同时动画 12 个，桌面最多 24 个；动画仅使用 `transform` / `opacity`。遵循系统 `prefers-reduced-motion`，正在播放时改变此设置也会取消动画。
+- 设置与同步共用原生 `details`，默认只占 62px；桌面展开后左右分栏，手机改为单列。收起时仍显示简短同步状态，分组切换的布局动画以整个折叠卡片为单位。
 - 回归时检查：首次加载无滚动条闪现、连续切换分组、五种弹窗的保存/取消/Escape、长内容可滚动、关闭后滚动与焦点恢复、手机横竖屏和减少动态效果模式。
 
 ## 修改时注意

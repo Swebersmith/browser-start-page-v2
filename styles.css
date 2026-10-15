@@ -437,8 +437,7 @@ button {
 .shortcut-grid { --scene-step: 3; }
 .widget-board { --scene-step: 4; }
 .weather-stage { --scene-step: 5; }
-.settings-panel { --scene-step: 6; }
-.sync-panel { --scene-step: 7; }
+.preferences-panel { --scene-step: 6; }
 
 /* ---------- 顶部：日期 + 一句文案 ---------- */
 
@@ -448,31 +447,102 @@ button {
   text-align: center;
 }
 
-/* ---------- 底部偏好设置 ---------- */
+/* ---------- 紧凑设置与同步 ---------- */
+
+.preferences-panel {
+  order: 7;
+  margin-top: 18px;
+  border-radius: 20px;
+}
+
+.preferences-summary {
+  display: grid;
+  grid-template-columns: auto 1fr auto 10px;
+  align-items: center;
+  gap: 14px;
+  min-height: 60px;
+  padding: 12px 18px;
+  list-style: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.preferences-summary::-webkit-details-marker { display: none; }
+
+.preferences-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--ink-strong);
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.preferences-title svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: var(--coral-deep);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
+.preferences-hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.preferences-sync-state {
+  padding: 4px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-flat);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.preferences-sync-state[data-tone="danger"] { color: var(--coral-deep); }
+.preferences-sync-state[data-tone="ok"] { color: #4f9472; }
+:root[data-theme="dark"] .preferences-sync-state[data-tone="ok"] { color: #8cc7a6; }
+
+.preferences-chevron {
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: rotate(45deg);
+  transition: transform 180ms var(--ease-soft);
+}
+
+.preferences-panel[open] .preferences-chevron { transform: rotate(225deg); }
+
+.preferences-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: 28px;
+  padding: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.preferences-panel[open] .preferences-content {
+  animation: scene-enter 220ms var(--ease-soft) backwards;
+}
 
 .settings-panel {
-  order: 7;
   display: grid;
+  min-width: 0;
+  align-content: start;
   gap: 0;
-  margin: 22px 0 0;
-  padding: 18px 20px 8px;
-  border-radius: 22px;
 }
 
-.settings-head p {
-  margin: 0;
-  color: var(--coral-deep);
-  font-size: 12.6px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.settings-head h2 {
-  margin: 6px 0 10px;
+.settings-head h2,
+.sync-panel h2 {
+  margin: 0 0 10px;
   color: var(--ink-strong);
-  font-size: 20.7px;
-  font-weight: 900;
+  font-size: 15px;
+  font-weight: 800;
 }
 
 .settings-row {
@@ -741,7 +811,7 @@ button {
 .search-zone {
   order: 2;
   isolation: isolate;
-  margin: 46px 0 20px;
+  margin: 94px 0 20px;
   padding: 26px 20px 16px;
   border-radius: 30px;
   /* 主角卡：玻璃更厚，带一层小新色 */
@@ -811,94 +881,22 @@ button {
   }
 }
 
-/* 春日部防卫队：趴在搜索卡上沿 */
+/* 六个角色共用一张透明插画，手和爪子搭在搜索卡上沿。 */
 .crew-strip {
   position: absolute;
   top: 0;
-  right: 0;
-  left: 0;
+  left: 50%;
   z-index: 4;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: clamp(6px, 3.6vw, 68px);
-  padding: 0 20px;
-  transform: translateY(-70%);
+  width: min(640px, calc(100% - 32px));
+  line-height: 0;
+  transform: translate(-50%, calc(-100% + 8px));
   pointer-events: none;
 }
 
-.crew-member {
-  display: block;
-  width: clamp(42px, 5.8vw, 72px);
-  height: clamp(42px, 5.8vw, 72px);
-  flex: 0 0 auto;
-  border: 1px solid rgba(255, 255, 255, 0.92);
-  border-radius: 50%;
-  background: linear-gradient(140deg, #ffeacb, #cfe4f2);
-  box-shadow:
-    0 12px 24px rgba(126, 100, 74, 0.22),
-    0 2px 6px rgba(126, 100, 74, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  overflow: hidden;
-  animation: crew-bob 5.6s ease-in-out infinite;
-}
-
-:root[data-theme="dark"] .crew-member {
-  border-color: rgba(255, 255, 255, 0.24);
-  background: linear-gradient(140deg, #4a4335, #33434f);
-  box-shadow:
-    0 12px 24px rgba(0, 0, 0, 0.45),
-    0 2px 6px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.16);
-}
-
-.crew-member img {
+.crew-strip img {
   display: block;
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-/* 高低错落，像真的趴在上面 */
-.crew-shinnosuke {
-  transform: translateY(3px);
-}
-
-.crew-kazama {
-  transform: translateY(-4px);
-  animation-delay: -0.7s;
-}
-
-.crew-nene {
-  transform: translateY(2px);
-  animation-delay: -1.4s;
-}
-
-.crew-bochan {
-  transform: translateY(-3px);
-  animation-delay: -2.1s;
-}
-
-.crew-masao {
-  transform: translateY(4px);
-  animation-delay: -2.8s;
-}
-
-.crew-shiro {
-  width: clamp(38px, 4.8vw, 60px);
-  height: clamp(38px, 4.8vw, 60px);
-  transform: translateY(8px);
-  animation-delay: -3.5s;
-}
-
-@keyframes crew-bob {
-  0%,
-  100% {
-    translate: 0 0;
-  }
-  50% {
-    translate: 0 -4px;
-  }
+  height: auto;
 }
 
 .search-form {
@@ -2215,21 +2213,25 @@ button {
 /* ---------- 同步面板 ---------- */
 
 .sync-panel {
-  order: 8;
-  display: flex;
-  width: 100%;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-content: start;
   align-items: center;
-  flex-wrap: wrap;
   gap: 10px;
-  margin: 22px 0 0;
-  padding: 16px 18px;
-  border-radius: 22px;
+}
+
+.sync-panel h2,
+.sync-panel .sync-key-field,
+.sync-panel .sync-visibility-toggle,
+.sync-panel p {
+  grid-column: 1 / -1;
 }
 
 .sync-panel .sync-key-field {
-  display: flex;
-  min-width: min(100%, 300px);
-  flex: 1 1 300px;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: 9px;
   color: var(--muted);
@@ -2288,7 +2290,7 @@ button {
   width: 100%;
   margin: 0;
   color: var(--muted);
-  font-size: 14.4px;
+  font-size: 12px;
   font-weight: 600;
   line-height: 1.55;
 }
@@ -2570,6 +2572,25 @@ html:has(dialog[open]) {
 }
 
 @media (max-width: 720px) {
+  .preferences-summary {
+    grid-template-columns: 1fr auto 10px;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .preferences-hint { display: none; }
+
+  .preferences-content {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+    padding: 16px;
+  }
+
+  .sync-panel {
+    border-top: 1px solid var(--line);
+    padding-top: 16px;
+  }
+
   .shell {
     width: calc(100% - 24px);
     /* 顶部留出右上角暗色切换按钮的高度，否则放大后的时钟会被它压住 */
@@ -2581,6 +2602,7 @@ html:has(dialog[open]) {
   }
 
   .search-zone {
+    margin-top: 64px;
     padding: 14px;
     border-radius: 24px;
   }
@@ -2604,18 +2626,17 @@ html:has(dialog[open]) {
   }
 
   .settings-row {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 8px;
+    gap: 10px;
   }
 
   .settings-value {
-    max-width: 100%;
+    max-width: 72%;
     justify-content: center;
   }
 
   .settings-row select {
-    width: 100%;
+    min-width: 130px;
+    max-width: 65%;
   }
 
   .weather-body {
@@ -2648,7 +2669,7 @@ html:has(dialog[open]) {
 /* ==========================================================================
    触摸设备 / 小屏性能降级
    backdrop-filter 与大面积模糊是移动 GPU 上最大的开销，这里换成不透明的
-   分层背景，观感接近但不再逐帧重算；同时停掉持续运行的光斑与头像浮动动画。
+   分层背景，观感接近但不再逐帧重算；同时停掉持续运行的光斑动画。
    ========================================================================== */
 
 @media (pointer: coarse), (max-width: 860px) {
@@ -2702,8 +2723,7 @@ html:has(dialog[open]) {
   }
 
   /* 大色块动画在触摸设备上停掉，背景转为静态渐变 */
-  .aurora,
-  .crew-member {
+  .aurora {
     animation: none;
   }
 

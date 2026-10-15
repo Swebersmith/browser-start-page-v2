@@ -3,7 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>小新风快捷首页</title>
+    <title>快捷首页</title>
+    <script>
+      // 在样式和主脚本之前恢复站名，首帧就使用本机已保存的名称。
+      (() => {
+        try {
+          const name = (localStorage.getItem("browser-launchpad-site-name-v1") || "").trim().slice(0, 30);
+          if (name) document.title = name;
+        } catch {
+          // 浏览器禁用本地存储时保留默认站名。
+        }
+      })();
+    </script>
     <!-- 首次绘制就隐藏滚动条，页面与弹窗仍可正常滚动。 -->
     <style>
       * { scrollbar-width: none; }
@@ -39,25 +50,8 @@
 
       <!-- 核心区：搜索引擎 + 搜索框，一整块液态玻璃 -->
       <section class="search-zone" aria-label="主搜索">
-        <div class="crew-strip" aria-label="春日部防卫队">
-          <span class="crew-member crew-shinnosuke">
-            <img src="./assets/avatars/shinnosuke.webp" alt="野原新之助" width="64" height="64" decoding="async" />
-          </span>
-          <span class="crew-member crew-kazama">
-            <img src="./assets/avatars/kazama.webp" alt="风间彻" width="64" height="64" decoding="async" />
-          </span>
-          <span class="crew-member crew-nene">
-            <img src="./assets/avatars/nene.webp" alt="樱田妮妮" width="64" height="64" decoding="async" />
-          </span>
-          <span class="crew-member crew-bochan">
-            <img src="./assets/avatars/bochan.webp" alt="阿呆" width="64" height="64" decoding="async" />
-          </span>
-          <span class="crew-member crew-masao">
-            <img src="./assets/avatars/masao.webp" alt="佐藤正男" width="64" height="64" decoding="async" />
-          </span>
-          <span class="crew-member crew-shiro">
-            <img src="./assets/avatars/shiro.webp" alt="小白" width="54" height="54" decoding="async" />
-          </span>
+        <div class="crew-strip">
+          <img src="./assets/illustrations/kasukabe-crew.webp" alt="小新、风间、妮妮、阿呆、正男和小白趴在搜索框上" width="1280" height="241" decoding="async" fetchpriority="high" />
         </div>
 
         <form id="searchForm" class="search-form">
@@ -209,51 +203,61 @@
         </article>
       </section>
 
-      <!-- 底部设置区 -->
-      <section class="glass-card settings-panel" aria-label="偏好设置">
-        <div class="settings-head">
-          <p>Settings</p>
-          <h2>偏好设置</h2>
-        </div>
+      <!-- 低频设置与同步共用一个默认收起的入口。 -->
+      <details class="glass-card preferences-panel" id="preferencesPanel">
+        <summary class="preferences-summary">
+          <span class="preferences-title">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M8 4v6M16 14v6" /></svg>
+            设置与同步
+          </span>
+          <span class="preferences-hint">站名 · 搜索引擎 · 多设备同步</span>
+          <span class="preferences-sync-state" id="preferencesSyncState">仅本机</span>
+          <span class="preferences-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="preferences-content">
+          <section class="settings-panel" aria-label="偏好设置">
+            <div class="settings-head"><h2>偏好设置</h2></div>
 
-        <div class="settings-row">
-          <span class="settings-label">站名</span>
-          <button
-            class="settings-value"
-            id="siteNameButton"
-            type="button"
-            title="修改浏览器标签页上显示的站名"
-          >
-            <span id="siteNameText">小新风快捷首页</span>
-            <span class="site-name-pen" aria-hidden="true">✎</span>
-          </button>
-        </div>
+            <div class="settings-row">
+              <span class="settings-label">站名</span>
+              <button
+                class="settings-value"
+                id="siteNameButton"
+                type="button"
+                title="修改浏览器标签页上显示的站名"
+              >
+                <span id="siteNameText">快捷首页</span>
+                <span class="site-name-pen" aria-hidden="true">✎</span>
+              </button>
+            </div>
 
-        <div class="settings-row">
-          <label class="settings-label" for="defaultCategorySelect">默认分组</label>
-          <select id="defaultCategorySelect"></select>
-        </div>
+            <div class="settings-row">
+              <label class="settings-label" for="defaultCategorySelect">默认分组</label>
+              <select id="defaultCategorySelect"></select>
+            </div>
 
-        <div class="settings-row">
-          <span class="settings-label">搜索引擎</span>
-          <button class="settings-value" id="manageEnginesButton" type="button">管理搜索引擎</button>
-        </div>
-      </section>
+            <div class="settings-row">
+              <span class="settings-label">搜索引擎</span>
+              <button class="settings-value" id="manageEnginesButton" type="button">管理搜索引擎</button>
+            </div>
+          </section>
 
-      <!-- 同步：放在最后，语气更柔和 -->
-      <section class="glass-card sync-panel" aria-label="多设备同步">
-        <label class="sync-key-field">
-          <span>同步码</span>
-          <input id="syncKeyInput" type="password" autocomplete="off" maxlength="80" placeholder="想多设备同步的话，填一个只有你知道的同步码" />
-        </label>
-        <label class="sync-visibility-toggle">
-          <input id="syncKeyVisibleToggle" type="checkbox" />
-          <span>显示同步码</span>
-        </label>
-        <button type="button" id="syncEnableButton">启用同步</button>
-        <button type="button" id="syncPullButton">拉取云端</button>
-        <p id="syncStatus" data-tone="neutral">还没开启同步，快捷方式先只放在这台设备上，随时可以再打开。</p>
-      </section>
+          <section class="sync-panel" aria-label="多设备同步">
+            <h2>多设备同步</h2>
+            <label class="sync-key-field">
+              <span>同步码</span>
+              <input id="syncKeyInput" type="password" autocomplete="off" maxlength="80" placeholder="输入只有你知道的同步码" />
+            </label>
+            <label class="sync-visibility-toggle">
+              <input id="syncKeyVisibleToggle" type="checkbox" />
+              <span>显示同步码</span>
+            </label>
+            <button type="button" id="syncEnableButton">启用同步</button>
+            <button type="button" id="syncPullButton">拉取云端</button>
+            <p id="syncStatus" data-tone="neutral">未开启同步，数据保存在本机。</p>
+          </section>
+        </div>
+      </details>
     </main>
 
     <dialog id="engineDialog">
@@ -327,7 +331,7 @@
         </div>
         <label>
           站名
-          <input id="siteNameInput" type="text" maxlength="30" placeholder="例如：小新风快捷首页" />
+          <input id="siteNameInput" type="text" maxlength="30" placeholder="例如：快捷首页" />
           <small class="field-hint">显示在浏览器最上面的标签页上，也会跟随同步码同步到其他设备。</small>
         </label>
         <div class="dialog-actions">

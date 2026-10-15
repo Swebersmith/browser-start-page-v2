@@ -8,7 +8,7 @@ const SITE_NAME_KEY = "browser-launchpad-site-name-v1";
 const CUSTOM_ENGINE_KEY = "browser-launchpad-custom-engines-v1";
 const PREF_KEY = "browser-launchpad-prefs-v1";
 const AI_CONFIG_KEY = "browser-launchpad-ai-config-v1";
-const DEFAULT_SITE_NAME = "小新风快捷首页";
+const DEFAULT_SITE_NAME = "快捷首页";
 const MAX_SITE_NAME = 30;
 const DEFAULT_ENGINE_BASE = "https://api.deepseek.com/v1";
 const DEFAULT_AI_MODEL = "deepseek-chat";
@@ -170,6 +170,7 @@ const elements = {
   syncEnableButton: document.querySelector("#syncEnableButton"),
   syncPullButton: document.querySelector("#syncPullButton"),
   syncStatus: document.querySelector("#syncStatus"),
+  preferencesSyncState: document.querySelector("#preferencesSyncState"),
   addWidgetButton: document.querySelector("#addWidgetButton"),
   widgetGrid: document.querySelector("#widgetGrid"),
   widgetTemplate: document.querySelector("#widgetTemplate"),
@@ -275,7 +276,7 @@ reducedMotion.addEventListener("change", () => {
 
 function readShortcutScene() {
   const positions = new Map();
-  const nodes = document.querySelectorAll(".shortcut-card, .widget-board, .weather-stage, .settings-panel, .sync-panel");
+  const nodes = document.querySelectorAll(".shortcut-card, .widget-board, .weather-stage, .preferences-panel");
   nodes.forEach((node) => {
     const rect = node.getBoundingClientRect();
     if (rect.bottom > 0 && rect.top < window.innerHeight) {
@@ -291,7 +292,7 @@ function animateShortcutScene(previous) {
   let count = 0;
   const moves = [];
   // 先批量读取，再批量启动动画，避免读写交替触发重复布局。
-  document.querySelectorAll(".shortcut-card, .widget-board, .weather-stage, .settings-panel, .sync-panel").forEach((node) => {
+  document.querySelectorAll(".shortcut-card, .widget-board, .weather-stage, .preferences-panel").forEach((node) => {
     const next = node.getBoundingClientRect();
     if (next.bottom <= 0 || next.top >= window.innerHeight || count >= limit) return;
     const before = previous.get(node.dataset.shortcutId || node);
@@ -649,6 +650,8 @@ function runSearch(query) {
 function setSyncStatus(message, tone = "neutral") {
   elements.syncStatus.textContent = message;
   elements.syncStatus.dataset.tone = tone;
+  elements.preferencesSyncState.textContent = tone === "danger" ? "同步待重试" : syncEnabled ? "同步已启用" : "仅本机";
+  elements.preferencesSyncState.dataset.tone = tone;
 }
 
 function getSyncPayload() {
