@@ -4,4 +4,6 @@ dist/
 .vercel/
 .env
 .env.*
+.dev.vars
+.dev.vars.*
 蜡笔小新图片/

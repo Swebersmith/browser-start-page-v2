@@ -350,8 +350,12 @@ async function handleTodayHistory(request) {
 }
 
 async function handleSync(request, env, syncKey) {
+  const respond = (data, init = {}) => json(data, {
+    ...init,
+    headers: { "cache-control": "no-store", ...(init.headers || {}) },
+  });
   if (!env.DB) {
-    return json(
+    return respond(
       {
         error: "D1_NOT_CONFIGURED",
         message: "Cloudflare D1 binding DB is not configured.",
@@ -361,7 +365,7 @@ async function handleSync(request, env, syncKey) {
   }
 
   if (!syncKey || syncKey.length < 4) {
-    return json({ error: "INVALID_SYNC_KEY" }, { status: 400 });
+    return respond({ error: "INVALID_SYNC_KEY" }, { status: 400 });
   }
 
   await ensureSchema(env.DB);
@@ -373,9 +377,9 @@ async function handleSync(request, env, syncKey) {
       .bind(syncKey)
       .first();
 
-    if (!row) return json({ exists: false, payload: null, updatedAt: null });
+    if (!row) return respond({ exists: false, payload: null, updatedAt: null });
 
-    return json({
+    return respond({
       exists: true,
       payload: JSON.parse(row.payload),
       updatedAt: row.updated_at,
@@ -385,27 +389,53 @@ async function handleSync(request, env, syncKey) {
   if (request.method === "POST" || request.method === "PUT") {
     const payload = await request.json().catch(() => null);
     if (!isValidPayload(payload)) {
-      return json({ error: "INVALID_PAYLOAD" }, { status: 400 });
+      return respond({ error: "INVALID_PAYLOAD" }, { status: 400 });
     }
 
     const text = JSON.stringify(buildSyncPayload(payload));
 
-    const result = await env.DB.prepare(
-      `
-      INSERT INTO sync_profiles (sync_key, payload, updated_at)
-      VALUES (?, ?, CURRENT_TIMESTAMP)
-      ON CONFLICT(sync_key) DO UPDATE SET
-        payload = excluded.payload,
-        updated_at = CURRENT_TIMESTAMP
-      `,
-    )
-      .bind(syncKey, text)
-      .run();
+    // Updating an existing code never grants permission to insert a new one.
+    // Keeping these as separate SQL operations also closes deletion/create races.
+    const existing = await env.DB.prepare("SELECT sync_key FROM sync_profiles WHERE sync_key = ?")
+      .bind(syncKey).first();
+    if (existing) {
+      const result = await env.DB.prepare(
+        "UPDATE sync_profiles SET payload = ?, updated_at = CURRENT_TIMESTAMP WHERE sync_key = ? RETURNING sync_key",
+      ).bind(text, syncKey).first();
+      if (!result) {
+        return respond({ error: "SYNC_KEY_NOT_FOUND" }, { status: 409 });
+      }
+      return respond({ ok: true, updated: true });
+    }
 
-    return json({ ok: true, updated: result.success });
+    if (typeof env.SYNC_CREATE_PASSWORD !== "string" || !env.SYNC_CREATE_PASSWORD) {
+      return respond({ error: "SYNC_CREATION_NOT_CONFIGURED" }, { status: 503 });
+    }
+    const password = request.headers.get("X-Sync-Create-Password") || "";
+    if (!password || password.length > 128) {
+      return respond({ error: "SYNC_CREATION_PASSWORD_REQUIRED" }, { status: 403 });
+    }
+    const encoder = new TextEncoder();
+    const [suppliedHash, expectedHash] = await Promise.all([
+      crypto.subtle.digest("SHA-256", encoder.encode(password)),
+      crypto.subtle.digest("SHA-256", encoder.encode(env.SYNC_CREATE_PASSWORD)),
+    ]);
+    if (!crypto.subtle.timingSafeEqual(suppliedHash, expectedHash)) {
+      return respond({ error: "INVALID_SYNC_CREATION_PASSWORD" }, { status: 403 });
+    }
+
+    // A concurrent creator must not overwrite the first creator's data.
+    const result = await env.DB.prepare(
+      `INSERT INTO sync_profiles (sync_key, payload, updated_at)
+       VALUES (?, ?, CURRENT_TIMESTAMP) ON CONFLICT(sync_key) DO NOTHING RETURNING sync_key`,
+    ).bind(syncKey, text).first();
+    if (!result) {
+      return respond({ error: "SYNC_KEY_EXISTS" }, { status: 409 });
+    }
+    return respond({ ok: true, created: true, updated: true });
   }
 
-  return json({ error: "METHOD_NOT_ALLOWED" }, { status: 405 });
+  return respond({ error: "METHOD_NOT_ALLOWED" }, { status: 405 });
 }
 
 /*

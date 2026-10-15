@@ -236,6 +236,11 @@
               <input id="syncKeyVisibleToggle" type="checkbox" />
               <span>显示同步码</span>
             </label>
+            <label class="sync-key-field">
+              <span>创建密码</span>
+              <input id="syncCreatePassword" type="password" autocomplete="off" maxlength="128" placeholder="仅创建新同步码时填写" aria-describedby="syncPasswordHint" />
+            </label>
+            <p id="syncPasswordHint">这是 webber 常用的密码。已有同步码无需填写。</p>
             <button type="button" id="syncEnableButton">启用同步</button>
             <button type="button" id="syncPullButton">拉取云端</button>
             <p id="syncStatus" data-tone="neutral">未开启同步，数据保存在本机。</p>

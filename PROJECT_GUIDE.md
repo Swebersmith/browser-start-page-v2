@@ -31,6 +31,7 @@
 - 当前时间和天气面板。
 - 五个角色与小白趴在搜索框上沿的透明简笔插画。
 - 多设备同步：输入同一个同步码后，不同设备会同步快捷方式、搜索历史和偏好设置。
+- 创建新同步码需要服务端密码；已有同步码照常连接。密码使用 Cloudflare Secret `SYNC_CREATE_PASSWORD`，不要写入前端、仓库或同步载荷。
 
 ## 文件结构
 
@@ -54,6 +55,7 @@ dist/                      构建产物，不提交 Git
 ```bash
 npm install
 npm run build
+npm test
 node --check script.js
 node --check src/worker.js
 npx wrangler deploy --dry-run

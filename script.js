@@ -162,6 +162,7 @@ const elements = {
   exportButton: document.querySelector("#exportButton"),
   importInput: document.querySelector("#importInput"),
   syncKeyInput: document.querySelector("#syncKeyInput"),
+  syncCreatePassword: document.querySelector("#syncCreatePassword"),
   syncKeyVisibleToggle: document.querySelector("#syncKeyVisibleToggle"),
   syncEnableButton: document.querySelector("#syncEnableButton"),
   syncPullButton: document.querySelector("#syncPullButton"),
@@ -227,6 +228,7 @@ let searchHistoryHideTimer = null;
 let selectedCategory = prefs.defaultCategory || ALL_CATEGORY;
 let editingId = null;
 let syncEnabled = false;
+let syncRequestPending = false;
 let isApplyingRemoteData = false;
 let syncSaveTimer = null;
 let draggedShortcutId = null;
@@ -386,6 +388,7 @@ elements.dialog.addEventListener("close", () => {
 });
 elements.settingsDialog.addEventListener("close", () => {
   elements.settingsButton.setAttribute("aria-expanded", "false");
+  elements.syncCreatePassword.value = "";
 });
 
 function normalizeShortcut(item, index = 0) {
@@ -659,18 +662,26 @@ function flushCloudData() {
   }).catch(() => undefined);
 }
 
-async function requestSync(method, syncKey, payload = null) {
+async function requestSync(method, syncKey, payload = null, creationPassword = "") {
+  const headers = payload ? { "content-type": "application/json" } : {};
+  if (creationPassword) headers["X-Sync-Create-Password"] = creationPassword;
   const response = await fetch(`/api/sync/${encodeURIComponent(syncKey)}`, {
     method,
-    headers: payload ? { "content-type": "application/json" } : undefined,
+    headers,
+    cache: "no-store",
     body: payload ? JSON.stringify(payload) : undefined,
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message =
-      data.error === "D1_NOT_CONFIGURED"
-        ? "云端同步还没配置好，先用本机保存也没问题。"
-        : data.error || "这次没连上云端，稍后再试一次。";
+    const messages = {
+      D1_NOT_CONFIGURED: "云端同步还没配置好，先用本机保存也没问题。",
+      SYNC_CREATION_NOT_CONFIGURED: "云端尚未设置创建密码，请联系站长。已有同步码仍可使用。",
+      SYNC_CREATION_PASSWORD_REQUIRED: "创建新同步码需要填写创建密码。",
+      INVALID_SYNC_CREATION_PASSWORD: "创建密码不正确，请再试一次。",
+      SYNC_KEY_EXISTS: "这个同步码刚被创建，请点击「拉取云端」连接。",
+      SYNC_KEY_NOT_FOUND: "这个同步码已不存在，请重新连接；创建新码需要密码。",
+    };
+    const message = messages[data.error] || "这次没连上云端，稍后再试一次。";
     throw new Error(message);
   }
   return data;
@@ -736,34 +747,57 @@ function scheduleCloudSave() {
 }
 
 async function pullCloudData({ createIfMissing = false } = {}) {
+  if (syncRequestPending) return;
   const syncKey = elements.syncKeyInput.value.trim();
   if (syncKey.length < 4) {
     setSyncStatus("同步码至少 4 个字符，长一点会更安全。", "neutral");
     return;
   }
 
-  localStorage.setItem(SYNC_KEY, syncKey);
-  syncEnabled = true;
+  window.clearTimeout(syncSaveTimer);
+  syncEnabled = false;
+  syncRequestPending = true;
   elements.syncKeyInput.value = syncKey;
-  elements.syncEnableButton.textContent = "同步已启用";
+  elements.syncEnableButton.textContent = "正在连接…";
+  elements.syncEnableButton.disabled = true;
+  elements.syncPullButton.disabled = true;
+  elements.syncKeyInput.disabled = true;
   setSyncStatus("小新正在连云端…", "neutral");
 
   try {
     const data = await requestSync("GET", syncKey);
     if (data.exists) {
       applyRemotePayload(data.payload);
+      localStorage.setItem(SYNC_KEY, syncKey);
+      syncEnabled = true;
       setSyncStatus(`已拉取云端数据：${data.updatedAt || "刚刚更新"}`, "ok");
       return;
     }
 
     if (createIfMissing) {
-      await pushCloudData("云端还没有数据，已用本机数据创建。");
+      const password = elements.syncCreatePassword.value;
+      if (!password) {
+        setSyncStatus("这是新的同步码，请先填写创建密码。", "neutral");
+        elements.syncCreatePassword.focus();
+        return;
+      }
+      await requestSync("PUT", syncKey, getSyncPayload(), password);
+      localStorage.setItem(SYNC_KEY, syncKey);
+      syncEnabled = true;
+      setSyncStatus("已验证密码，并用本机数据创建新同步码。", "ok");
     } else {
-      setSyncStatus("云端还是空的，点「启用同步」就会把这台设备的快捷方式存上去。", "neutral");
+      setSyncStatus("未找到这个同步码。创建新码请填写创建密码，再点「启用同步」。", "neutral");
     }
   } catch (error) {
     syncEnabled = false;
     setSyncStatus(error.message, "danger");
+  } finally {
+    elements.syncCreatePassword.value = "";
+    syncRequestPending = false;
+    elements.syncEnableButton.textContent = syncEnabled ? "同步已启用" : "启用同步";
+    elements.syncEnableButton.disabled = false;
+    elements.syncPullButton.disabled = false;
+    elements.syncKeyInput.disabled = false;
   }
 }
 
@@ -772,8 +806,6 @@ function initSync() {
   elements.syncKeyInput.value = savedSyncKey;
   if (!savedSyncKey) return;
 
-  syncEnabled = true;
-  elements.syncEnableButton.textContent = "同步已启用";
   pullCloudData();
 }
 
