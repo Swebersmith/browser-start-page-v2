@@ -1,6 +1,6 @@
 const STORAGE_KEY = "browser-launchpad-shortcuts-v1";
 const ENGINE_KEY = "browser-launchpad-engine-v1";
-const WIDGET_KEY = "browser-launchpad-widgets-v1";
+const LEGACY_WIDGETS_KEY = "browser-launchpad-widgets-v1";
 const SYNC_KEY = "browser-launchpad-sync-key-v1";
 const SEARCH_HISTORY_KEY = "browser-launchpad-search-history-v1";
 const DARK_MODE_KEY = "browser-launchpad-dark-mode-v1";
@@ -93,9 +93,6 @@ const defaultShortcuts = [
   { id: createId(), name: "阿里云", url: "https://www.aliyun.com", category: "服务器", color: "#ff6a00" },
 ];
 
-/* 默认不预置小组件：新用户先只有「天气」和「历史上的今天」两张卡 */
-const defaultWidgets = [];
-
 const fallbackHistoryEvents = {
   "01-01": {
     domestic: [{ year: "1912", title: "中华民国临时政府在南京成立", detail: "孙中山在南京就任临时大总统，中华民国临时政府成立。" }],
@@ -144,7 +141,6 @@ const elements = {
   engineSelectedMark: document.querySelector("#engineSelectedMark"),
   engineSelectedName: document.querySelector("#engineSelectedName"),
   engineMenu: document.querySelector("#engineMenu"),
-  engineButtons: document.querySelector("#engineButtons"),
   categoryTabs: document.querySelector("#categoryTabs"),
   shortcutGrid: document.querySelector("#shortcutGrid"),
   template: document.querySelector("#shortcutTemplate"),
@@ -171,20 +167,11 @@ const elements = {
   syncPullButton: document.querySelector("#syncPullButton"),
   syncStatus: document.querySelector("#syncStatus"),
   preferencesSyncState: document.querySelector("#preferencesSyncState"),
-  addWidgetButton: document.querySelector("#addWidgetButton"),
-  widgetGrid: document.querySelector("#widgetGrid"),
-  widgetTemplate: document.querySelector("#widgetTemplate"),
-  widgetDialog: document.querySelector("#widgetDialog"),
-  widgetForm: document.querySelector("#widgetForm"),
-  widgetDialogTitle: document.querySelector("#widgetDialogTitle"),
-  widgetTitle: document.querySelector("#widgetTitle"),
-  widgetType: document.querySelector("#widgetType"),
-  widgetContent: document.querySelector("#widgetContent"),
-  widgetColor: document.querySelector("#widgetColor"),
-  closeWidgetDialogButton: document.querySelector("#closeWidgetDialogButton"),
-  cancelWidgetDialogButton: document.querySelector("#cancelWidgetDialogButton"),
-  deleteWidgetButton: document.querySelector("#deleteWidgetButton"),
   darkToggleButton: document.querySelector("#darkToggleButton"),
+  settingsButton: document.querySelector("#settingsButton"),
+  settingsDialog: document.querySelector("#settingsDialog"),
+  closeSettingsDialogButton: document.querySelector("#closeSettingsDialogButton"),
+  searchTargetSelect: document.querySelector("#searchTargetSelect"),
   siteNameButton: document.querySelector("#siteNameButton"),
   siteNameText: document.querySelector("#siteNameText"),
   siteNameDialog: document.querySelector("#siteNameDialog"),
@@ -205,9 +192,6 @@ const elements = {
   weatherHumidity: document.querySelector("#weatherHumidity"),
   weatherWind: document.querySelector("#weatherWind"),
   defaultCategorySelect: document.querySelector("#defaultCategorySelect"),
-  searchTargetButton: document.querySelector("#searchTargetButton"),
-  searchTargetIcon: document.querySelector("#searchTargetIcon"),
-  searchTargetText: document.querySelector("#searchTargetText"),
   manageEnginesButton: document.querySelector("#manageEnginesButton"),
   engineDialog: document.querySelector("#engineDialog"),
   engineForm: document.querySelector("#engineForm"),
@@ -232,7 +216,7 @@ const elements = {
 };
 
 let shortcuts = loadShortcuts();
-let widgets = loadWidgets();
+let legacyWidgets = loadLegacyWidgets();
 let customEngines = loadCustomEngines();
 let prefs = loadPrefs();
 let aiConfig = loadAiConfig();
@@ -242,7 +226,6 @@ let searchHistoryRequested = false;
 let searchHistoryHideTimer = null;
 let selectedCategory = prefs.defaultCategory || ALL_CATEGORY;
 let editingId = null;
-let editingWidgetId = null;
 let syncEnabled = false;
 let isApplyingRemoteData = false;
 let syncSaveTimer = null;
@@ -276,7 +259,7 @@ reducedMotion.addEventListener("change", () => {
 
 function readShortcutScene() {
   const positions = new Map();
-  const nodes = document.querySelectorAll(".shortcut-card, .widget-board, .weather-stage, .preferences-panel");
+  const nodes = document.querySelectorAll(".shortcut-card, .weather-stage");
   nodes.forEach((node) => {
     const rect = node.getBoundingClientRect();
     if (rect.bottom > 0 && rect.top < window.innerHeight) {
@@ -292,7 +275,7 @@ function animateShortcutScene(previous) {
   let count = 0;
   const moves = [];
   // 先批量读取，再批量启动动画，避免读写交替触发重复布局。
-  document.querySelectorAll(".shortcut-card, .widget-board, .weather-stage, .preferences-panel").forEach((node) => {
+  document.querySelectorAll(".shortcut-card, .weather-stage").forEach((node) => {
     const next = node.getBoundingClientRect();
     if (next.bottom <= 0 || next.top >= window.innerHeight || count >= limit) return;
     const before = previous.get(node.dataset.shortcutId || node);
@@ -401,9 +384,8 @@ elements.dialog.addEventListener("close", () => {
   setShortcutMetaStatus("");
   elements.shortcutForm.reset();
 });
-elements.widgetDialog.addEventListener("close", () => {
-  editingWidgetId = null;
-  elements.widgetForm.reset();
+elements.settingsDialog.addEventListener("close", () => {
+  elements.settingsButton.setAttribute("aria-expanded", "false");
 });
 
 function normalizeShortcut(item, index = 0) {
@@ -438,21 +420,14 @@ function saveShortcuts() {
   scheduleCloudSave();
 }
 
-function loadWidgets() {
-  const raw = localStorage.getItem(WIDGET_KEY);
-  if (!raw) return defaultWidgets;
-
+/* 仅透传旧版同步字段，已移除小组件界面和编辑功能，避免覆盖已有数据。 */
+function loadLegacyWidgets() {
   try {
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length ? parsed : defaultWidgets;
+    const value = JSON.parse(localStorage.getItem(LEGACY_WIDGETS_KEY) || "[]");
+    return Array.isArray(value) ? value : [];
   } catch {
-    return defaultWidgets;
+    return [];
   }
-}
-
-function saveWidgets() {
-  localStorage.setItem(WIDGET_KEY, JSON.stringify(widgets));
-  scheduleCloudSave();
 }
 
 /* ---------- 自定义搜索引擎 / 偏好 / AI 配置 ---------- */
@@ -657,7 +632,7 @@ function setSyncStatus(message, tone = "neutral") {
 function getSyncPayload() {
   return {
     shortcuts,
-    widgets,
+    widgets: legacyWidgets,
     searchHistory,
     siteName: loadSiteName(),
     defaultCategory: prefs.defaultCategory || "",
@@ -702,11 +677,14 @@ async function requestSync(method, syncKey, payload = null) {
 }
 
 function applyRemotePayload(payload) {
-  if (!payload || !Array.isArray(payload.shortcuts) || !Array.isArray(payload.widgets)) return;
+  if (!payload || !Array.isArray(payload.shortcuts)) return;
 
   isApplyingRemoteData = true;
   shortcuts = payload.shortcuts.map((item, index) => normalizeShortcut(item, index)).filter((item) => item.url);
-  widgets = payload.widgets;
+  if (Array.isArray(payload.widgets)) {
+    legacyWidgets = payload.widgets;
+    localStorage.setItem(LEGACY_WIDGETS_KEY, JSON.stringify(legacyWidgets));
+  }
   searchHistory = Array.isArray(payload.searchHistory)
     ? payload.searchHistory.filter((item) => typeof item === "string" && item.trim()).slice(0, MAX_SEARCH_HISTORY)
     : searchHistory;
@@ -730,12 +708,10 @@ function applyRemotePayload(payload) {
   localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
   renderSearchTarget();
   saveShortcuts();
-  saveWidgets();
   saveSearchHistory({ sync: false });
   isApplyingRemoteData = false;
 
   renderShortcutArea();
-  renderWidgets();
   renderSearchHistory();
 }
 
@@ -1142,18 +1118,13 @@ function setDefaultCategory(value) {
 /* ---------- 搜索结果打开方式 ---------- */
 
 function renderSearchTarget() {
-  const isNewTab = getSearchTarget() === "_blank";
-  if (elements.searchTargetIcon) elements.searchTargetIcon.textContent = isNewTab ? "↗" : "→";
-  if (elements.searchTargetText) elements.searchTargetText.textContent = isNewTab ? "新标签页" : "本页打开";
-  elements.searchTargetButton?.setAttribute("aria-pressed", String(isNewTab));
-  elements.searchTargetButton?.setAttribute(
-    "title",
-    isNewTab ? "当前：在新标签页打开搜索结果（点击改为本页打开）" : "当前：在本页打开搜索结果（点击改为新标签页）",
-  );
+  elements.searchTargetSelect.value = getSearchTarget();
 }
 
-function toggleSearchTarget() {
-  setSearchTarget(getSearchTarget() === "_blank" ? "_self" : "_blank");
+function openSettingsDialog() {
+  closeEngineMenu();
+  openSurface(elements.settingsDialog);
+  elements.settingsButton.setAttribute("aria-expanded", "true");
 }
 
 /* ---------- 自定义搜索引擎 ---------- */
@@ -1572,7 +1543,6 @@ async function loadWeather() {
 
 function renderEngines() {
   elements.engineSelect.innerHTML = "";
-  elements.engineButtons.innerHTML = "";
   elements.engineMenu.innerHTML = "";
 
   const engines = getEngines();
@@ -1601,14 +1571,6 @@ function renderEngines() {
       elements.engineSelectButton.focus();
     });
     elements.engineMenu.append(menuButton);
-
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = `engine-tab engine-${engine.id}`;
-    button.dataset.engine = engine.id;
-    button.innerHTML = `<span class="engine-mark">${engine.mark}</span><span>${engine.name}</span>`;
-    button.addEventListener("click", () => setEngine(engine.id));
-    elements.engineButtons.append(button);
   });
 
   setEngine(savedEngine);
@@ -1651,10 +1613,6 @@ function setEngine(engineId) {
   elements.engineSelectButton.className = `engine-select-button engine-${nextId}`;
   document.documentElement.dataset.engine = nextId;
   localStorage.setItem(ENGINE_KEY, nextId);
-
-  elements.engineButtons.querySelectorAll("button").forEach((button) => {
-    button.classList.toggle("is-active", button.dataset.engine === nextId);
-  });
 
   elements.engineMenu.querySelectorAll(".engine-option").forEach((button) => {
     const isActive = button.dataset.engine === nextId;
@@ -1810,7 +1768,6 @@ function renderShortcuts({ animate = false } = {}) {
 function render() {
   renderCategories();
   renderShortcuts();
-  renderWidgets();
   renderDefaultCategoryOptions();
 }
 
@@ -1878,109 +1835,6 @@ function deleteEditingShortcut() {
   saveShortcuts();
   closeDialog();
   renderShortcutArea();
-}
-
-function getWidgetTypeLabel(type) {
-  const labels = {
-    note: "便签",
-    countdown: "倒计时",
-    link: "链接",
-  };
-  return labels[type] || "组件";
-}
-
-function formatWidgetContent(widget) {
-  if (widget.type === "countdown") {
-    const target = new Date(`${widget.content}T00:00:00`);
-    if (Number.isNaN(target.getTime())) return "日期格式示例：2026-12-31";
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const diff = Math.ceil((target - today) / 86400000);
-    if (diff > 0) return `还有 ${diff} 天`;
-    if (diff === 0) return "就是今天";
-    return `已过去 ${Math.abs(diff)} 天`;
-  }
-
-  if (widget.type === "link") {
-    return getHostname(normalizeUrl(widget.content));
-  }
-
-  return widget.content;
-}
-
-function renderWidgets() {
-  elements.widgetGrid.innerHTML = "";
-  widgets.forEach((widget) => {
-    const node = elements.widgetTemplate.content.firstElementChild.cloneNode(true);
-    const ribbon = node.querySelector(".widget-ribbon");
-    const type = node.querySelector(".widget-type");
-    const title = node.querySelector("h3");
-    const content = node.querySelector(".widget-content");
-    const editButton = node.querySelector(".edit-widget");
-
-    ribbon.style.background = widget.color;
-    type.textContent = getWidgetTypeLabel(widget.type);
-    title.textContent = widget.title;
-    content.textContent = formatWidgetContent(widget);
-    editButton.addEventListener("click", () => openWidgetDialog(widget.id));
-
-    if (widget.type === "link") {
-      node.addEventListener("dblclick", () => {
-        window.open(normalizeUrl(widget.content), "_blank", "noreferrer");
-      });
-    }
-
-    elements.widgetGrid.append(node);
-  });
-}
-
-function openWidgetDialog(id = null) {
-  editingWidgetId = id;
-  const widget = widgets.find((item) => item.id === id);
-
-  elements.widgetDialogTitle.textContent = widget ? "编辑小组件" : "添加小组件";
-  elements.widgetTitle.value = widget?.title || "";
-  elements.widgetType.value = widget?.type || "note";
-  elements.widgetContent.value = widget?.content || "";
-  elements.widgetColor.value = widget?.color || "#2775d1";
-  elements.deleteWidgetButton.hidden = !widget;
-  openSurface(elements.widgetDialog);
-  elements.widgetTitle.focus();
-}
-
-function closeWidgetDialog() {
-  closeSurface(elements.widgetDialog);
-}
-
-function saveWidgetFromDialog(event) {
-  event.preventDefault();
-  const data = {
-    title: elements.widgetTitle.value.trim(),
-    type: elements.widgetType.value,
-    content: elements.widgetContent.value.trim(),
-    color: elements.widgetColor.value,
-  };
-
-  if (editingWidgetId) {
-    widgets = widgets.map((widget) => (widget.id === editingWidgetId ? { ...widget, ...data } : widget));
-  } else {
-    widgets = [{ id: createId(), ...data }, ...widgets];
-  }
-
-  saveWidgets();
-  closeWidgetDialog();
-  renderWidgets();
-}
-
-function deleteEditingWidget() {
-  if (!editingWidgetId) return;
-  const widget = widgets.find((item) => item.id === editingWidgetId);
-  const message = widget ? `确定删除「${widget.title}」这个小组件吗？` : "确定删除这个小组件吗？";
-  if (!window.confirm(message)) return;
-  widgets = widgets.filter((widgetItem) => widgetItem.id !== editingWidgetId);
-  saveWidgets();
-  closeWidgetDialog();
-  renderWidgets();
 }
 
 function getTodayHistoryFallback() {
@@ -2257,11 +2111,6 @@ elements.syncPullButton.addEventListener("click", () => pullCloudData());
 elements.syncKeyVisibleToggle.addEventListener("change", () => {
   elements.syncKeyInput.type = elements.syncKeyVisibleToggle.checked ? "text" : "password";
 });
-elements.addWidgetButton.addEventListener("click", () => openWidgetDialog());
-elements.closeWidgetDialogButton.addEventListener("click", closeWidgetDialog);
-elements.cancelWidgetDialogButton.addEventListener("click", closeWidgetDialog);
-elements.widgetForm.addEventListener("submit", saveWidgetFromDialog);
-elements.deleteWidgetButton.addEventListener("click", deleteEditingWidget);
 elements.weatherRefreshButton.addEventListener("click", loadWeather);
 elements.siteNameButton.addEventListener("click", openSiteNameDialog);
 elements.siteNameForm.addEventListener("submit", saveSiteNameFromDialog);
@@ -2275,7 +2124,9 @@ elements.quoteRefreshButton.addEventListener("click", renderQuote);
 elements.defaultCategorySelect.addEventListener("change", (event) => {
   setDefaultCategory(event.target.value);
 });
-elements.searchTargetButton.addEventListener("click", toggleSearchTarget);
+elements.searchTargetSelect.addEventListener("change", (event) => setSearchTarget(event.target.value));
+elements.settingsButton.addEventListener("click", openSettingsDialog);
+elements.closeSettingsDialogButton.addEventListener("click", () => closeSurface(elements.settingsDialog));
 elements.manageEnginesButton.addEventListener("click", openEngineDialog);
 elements.engineForm.addEventListener("submit", saveEnginesFromDialog);
 elements.addEngineRowButton.addEventListener("click", () => {

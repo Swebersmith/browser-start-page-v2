@@ -339,7 +339,6 @@ button {
 /* 所有玻璃卡片共用一份配方 */
 .glass-card,
 .search-zone,
-.widget-card,
 .dialog-card {
   position: relative;
   border: 1px solid var(--glass-border);
@@ -351,8 +350,7 @@ button {
 
 /* 卡片顶部一道高光 */
 .glass-card::before,
-.search-zone::before,
-.widget-card::before {
+.search-zone::before {
   position: absolute;
   inset: 0;
   z-index: 0;
@@ -363,14 +361,12 @@ button {
 }
 
 :root[data-theme="dark"] .glass-card::before,
-:root[data-theme="dark"] .search-zone::before,
-:root[data-theme="dark"] .widget-card::before {
+:root[data-theme="dark"] .search-zone::before {
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0) 46%);
 }
 
 .glass-card > *,
-.search-zone > *,
-.widget-card > * {
+.search-zone > * {
   position: relative;
   z-index: 1;
 }
@@ -387,13 +383,19 @@ button {
   border: 0;
 }
 
-/* ---------- 暗色模式按钮 ---------- */
+/* ---------- 右上角页面控制 ---------- */
 
-.dark-toggle {
+.page-controls {
   position: fixed;
   top: 20px;
   right: 22px;
   z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.page-control {
   display: grid;
   width: 44px;
   height: 44px;
@@ -410,8 +412,17 @@ button {
     box-shadow 0.22s var(--ease-soft);
 }
 
-.dark-toggle:hover {
+.page-control:hover {
   transform: translateY(-2px) scale(1.04);
+}
+
+.page-control svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
 }
 
 /* ---------- 页面骨架 ---------- */
@@ -435,9 +446,7 @@ button {
 .search-zone { --scene-step: 1; }
 .toolbar { --scene-step: 2; }
 .shortcut-grid { --scene-step: 3; }
-.widget-board { --scene-step: 4; }
-.weather-stage { --scene-step: 5; }
-.preferences-panel { --scene-step: 6; }
+.weather-stage { --scene-step: 4; }
 
 /* ---------- 顶部：日期 + 一句文案 ---------- */
 
@@ -449,51 +458,23 @@ button {
 
 /* ---------- 紧凑设置与同步 ---------- */
 
-.preferences-panel {
-  order: 7;
-  margin-top: 18px;
-  border-radius: 20px;
+.settings-dialog {
+  width: min(760px, calc(100% - 30px));
 }
 
-.preferences-summary {
-  display: grid;
-  grid-template-columns: auto 1fr auto 10px;
+.settings-dialog-card > .dialog-head {
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sync-heading {
+  display: flex;
   align-items: center;
-  gap: 14px;
-  min-height: 60px;
-  padding: 12px 18px;
-  list-style: none;
-  cursor: pointer;
-  touch-action: manipulation;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.preferences-summary::-webkit-details-marker { display: none; }
-
-.preferences-title {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  color: var(--ink-strong);
-  font-size: 15px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.preferences-title svg {
-  width: 19px;
-  height: 19px;
-  fill: none;
-  stroke: var(--coral-deep);
-  stroke-width: 1.8;
-  stroke-linecap: round;
-}
-
-.preferences-hint {
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.preferences-sync-state {
+.sync-state {
   padding: 4px 9px;
   border-radius: var(--radius-pill);
   background: var(--glass-flat);
@@ -503,31 +484,14 @@ button {
   white-space: nowrap;
 }
 
-.preferences-sync-state[data-tone="danger"] { color: var(--coral-deep); }
-.preferences-sync-state[data-tone="ok"] { color: #4f9472; }
-:root[data-theme="dark"] .preferences-sync-state[data-tone="ok"] { color: #8cc7a6; }
+.sync-state[data-tone="danger"] { color: var(--coral-deep); }
+.sync-state[data-tone="ok"] { color: #4f9472; }
+:root[data-theme="dark"] .sync-state[data-tone="ok"] { color: #8cc7a6; }
 
-.preferences-chevron {
-  width: 7px;
-  height: 7px;
-  border-right: 1.5px solid var(--muted);
-  border-bottom: 1.5px solid var(--muted);
-  transform: rotate(45deg);
-  transition: transform 180ms var(--ease-soft);
-}
-
-.preferences-panel[open] .preferences-chevron { transform: rotate(225deg); }
-
-.preferences-content {
+.settings-content {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
   gap: 28px;
-  padding: 18px;
-  border-top: 1px solid var(--line);
-}
-
-.preferences-panel[open] .preferences-content {
-  animation: scene-enter 220ms var(--ease-soft) backwards;
 }
 
 .settings-panel {
@@ -812,7 +776,7 @@ button {
   order: 2;
   isolation: isolate;
   margin: 94px 0 20px;
-  padding: 26px 20px 16px;
+  padding: 24px 20px;
   border-radius: 30px;
   /* 主角卡：玻璃更厚，带一层小新色 */
   border-color: rgba(255, 255, 255, 0.9);
@@ -903,7 +867,7 @@ button {
   position: relative;
   z-index: 6;
   display: grid;
-  grid-template-columns: 196px minmax(0, 1fr) 112px auto;
+  grid-template-columns: 196px minmax(0, 1fr) 112px;
   align-items: center;
   gap: 10px;
 }
@@ -1198,55 +1162,6 @@ button {
     filter 0.2s ease;
 }
 
-/* 搜索打开方式：本页加载 / 新标签页 */
-.search-target {
-  display: inline-flex;
-  min-height: 62px;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-inner);
-  padding: 0 14px;
-  background: var(--glass-flat);
-  box-shadow: var(--glass-inner);
-  color: var(--muted);
-  font-size: 12.6px;
-  font-weight: 700;
-  line-height: 1.15;
-  white-space: nowrap;
-  transition:
-    transform 0.2s var(--ease-soft),
-    background-color 0.2s ease,
-    color 0.2s ease,
-    box-shadow 0.2s var(--ease-soft);
-}
-
-.search-target-icon {
-  font-size: 15px;
-  line-height: 1;
-}
-
-.search-target:hover {
-  transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.88);
-  color: var(--ink);
-}
-
-:root[data-theme="dark"] .search-target:hover {
-  background: rgba(255, 255, 255, 0.14);
-}
-
-/* 新标签页模式：给一点小新红做提示 */
-.search-target[aria-pressed="true"] {
-  border-color: rgba(207, 106, 82, 0.5);
-  background: linear-gradient(140deg, rgba(224, 134, 111, 0.22), rgba(224, 134, 111, 0.12));
-  color: var(--coral-deep);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 6px 16px rgba(207, 106, 82, 0.16);
-}
-
 :root[data-engine="google"] .search-button {
   background: linear-gradient(140deg, #6a9df0, #4285f4);
   box-shadow:
@@ -1296,21 +1211,9 @@ button {
   transform: translateY(0) scale(0.99);
 }
 
-/* 快捷切换引擎 */
-.quick-engines {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.quick-engines button,
 .tabs button,
 .actions button,
 .import-button,
-.section-head button,
 .sync-panel button,
 .url-line button,
 .color-line button,
@@ -1333,11 +1236,9 @@ button {
     color 0.2s ease;
 }
 
-:root[data-theme="dark"] .quick-engines button,
 :root[data-theme="dark"] .tabs button,
 :root[data-theme="dark"] .actions button,
 :root[data-theme="dark"] .import-button,
-:root[data-theme="dark"] .section-head button,
 :root[data-theme="dark"] .sync-panel button,
 :root[data-theme="dark"] .url-line button,
 :root[data-theme="dark"] .color-line button,
@@ -1348,11 +1249,9 @@ button {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
-.quick-engines button:hover,
 .tabs button:hover,
 .actions button:hover,
 .import-button:hover,
-.section-head button:hover,
 .sync-panel button:hover,
 .url-line button:hover,
 .color-line button:hover,
@@ -1366,11 +1265,9 @@ button {
     0 10px 22px rgba(126, 100, 74, 0.16);
 }
 
-:root[data-theme="dark"] .quick-engines button:hover,
 :root[data-theme="dark"] .tabs button:hover,
 :root[data-theme="dark"] .actions button:hover,
 :root[data-theme="dark"] .import-button:hover,
-:root[data-theme="dark"] .section-head button:hover,
 :root[data-theme="dark"] .sync-panel button:hover,
 :root[data-theme="dark"] .dialog-actions button:hover,
 :root[data-theme="dark"] .weather-refresh:hover,
@@ -1378,13 +1275,6 @@ button {
   background: rgba(255, 255, 255, 0.14);
 }
 
-.quick-engines .engine-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.quick-engines button.is-active,
 .tabs button.is-active {
   border-color: rgba(255, 255, 255, 0.5);
   background: linear-gradient(140deg, var(--sky), var(--sky-deep));
@@ -1392,29 +1282,6 @@ button {
   box-shadow:
     0 8px 20px rgba(123, 169, 198, 0.34),
     inset 0 1px 0 rgba(255, 255, 255, 0.42);
-}
-
-.quick-engines .engine-google.is-active {
-  background: linear-gradient(140deg, #6a9df0, #4285f4);
-  box-shadow:
-    0 8px 20px rgba(66, 133, 244, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.42);
-}
-
-.quick-engines .engine-bing.is-active {
-  background: linear-gradient(140deg, #17a394, #008373);
-}
-
-.quick-engines .engine-baidu.is-active {
-  background: linear-gradient(140deg, #5560ee, #2932e1);
-}
-
-.quick-engines .engine-duckduckgo.is-active {
-  background: linear-gradient(140deg, #ec7a55, #de5833);
-}
-
-.quick-engines .engine-github.is-active {
-  background: linear-gradient(140deg, #3d444d, #24292f);
 }
 
 /* 搜索历史 */
@@ -1722,132 +1589,10 @@ button {
   opacity: 1;
 }
 
-/* ---------- 小组件 ---------- */
-
-.widget-board {
-  order: 5;
-  margin: 26px 0 6px;
-}
-
-.section-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 14px;
-}
-
-.section-head p,
-.widget-type {
-  margin: 0;
-  color: var(--coral-deep);
-  font-size: 12.6px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.section-head h2 {
-  margin: 6px 0 0;
-  color: var(--ink-strong);
-  font-size: clamp(23px, 2.8vw, 29.9px);
-  font-weight: 900;
-  letter-spacing: -0.01em;
-}
-
-.section-head button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 38px;
-}
-
-.section-head button span {
-  font-size: 19.5px;
-  line-height: 1;
-}
-
-.widget-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-}
-
-.widget-card {
-  min-height: 132px;
-  border-radius: 22px;
-  padding: 18px;
-  overflow: hidden;
-  transition:
-    transform 0.26s var(--ease-soft),
-    box-shadow 0.26s var(--ease-soft);
-}
-
-.widget-card:hover {
-  transform: translateY(-4px);
-  box-shadow:
-    0 26px 50px rgba(126, 100, 74, 0.2),
-    var(--glass-inner);
-}
-
-.widget-ribbon {
-  position: absolute;
-  top: 0;
-  left: 18px;
-  width: 46px;
-  height: 3px;
-  border-radius: 0 0 3px 3px;
-  background: var(--sky-deep);
-  transition: width 0.26s var(--ease-soft);
-}
-
-.widget-card:hover .widget-ribbon {
-  width: 76px;
-}
-
-.widget-card h3 {
-  margin: 8px 0 10px;
-  color: var(--ink-strong);
-  font-size: 19.5px;
-  font-weight: 800;
-  line-height: 1.25;
-}
-
-.widget-content {
-  margin: 0;
-  color: var(--muted);
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.6;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-.edit-widget {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  min-height: 26px;
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-pill);
-  padding: 0 10px;
-  background: rgba(255, 255, 255, 0.6);
-  color: var(--ink);
-  font-size: 12.6px;
-  font-weight: 700;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.widget-card:hover .edit-widget,
-.edit-widget:focus-visible {
-  opacity: 1;
-}
-
 /* ---------- 底部信息区：天气 + 旧日历 ---------- */
 
 .weather-stage {
-  order: 6;
+  order: 5;
   position: relative;
   z-index: 5;
   display: grid;
@@ -2523,9 +2268,9 @@ html:has(dialog[open]) {
 /* ---------- 响应式 ---------- */
 
 @media (max-width: 860px) {
-  /* 窄屏：引擎与输入框各占一行，「出发」和打开方式切换并排 */
+  /* 窄屏：引擎、输入框与搜索按钮各占一行。 */
   .search-form {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .engine-select,
@@ -2534,11 +2279,7 @@ html:has(dialog[open]) {
   }
 
   .search-button {
-    grid-column: 1;
-  }
-
-  .search-target {
-    grid-column: 2;
+    grid-column: 1 / -1;
   }
 
   .engine-select-button {
@@ -2572,18 +2313,10 @@ html:has(dialog[open]) {
 }
 
 @media (max-width: 720px) {
-  .preferences-summary {
-    grid-template-columns: 1fr auto 10px;
-    gap: 10px;
-    padding: 12px 14px;
-  }
 
-  .preferences-hint { display: none; }
-
-  .preferences-content {
+  .settings-content {
     grid-template-columns: minmax(0, 1fr);
     gap: 20px;
-    padding: 16px;
   }
 
   .sync-panel {
@@ -2599,6 +2332,17 @@ html:has(dialog[open]) {
 
   .topbar {
     margin-bottom: 18px;
+  }
+
+  /* 日期与时间分行，为右侧两枚按钮留出位置。 */
+  .clock-line {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .clock-date {
+    font-size: 18px;
   }
 
   .search-zone {
@@ -2618,11 +2362,6 @@ html:has(dialog[open]) {
 
   .shortcut-grid {
     grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  }
-
-  .section-head {
-    align-items: flex-start;
-    flex-direction: column;
   }
 
   .settings-row {
@@ -2658,9 +2397,13 @@ html:has(dialog[open]) {
     grid-template-columns: 1fr;
   }
 
-  .dark-toggle {
+  .page-controls {
     top: 14px;
     right: 14px;
+    gap: 10px;
+  }
+
+  .page-control {
     width: 40px;
     height: 40px;
   }
@@ -2690,10 +2433,9 @@ html:has(dialog[open]) {
 
   .glass-card,
   .search-zone,
-  .widget-card,
   .shortcut-card,
   .dialog-card,
-  .dark-toggle,
+  .page-control,
   .settings-value,
   .quote-refresh,
   .engine-menu,
@@ -2703,7 +2445,6 @@ html:has(dialog[open]) {
   }
 
   .glass-card,
-  .widget-card,
   .dialog-card {
     background: var(--glass-solid);
   }
@@ -2716,7 +2457,7 @@ html:has(dialog[open]) {
     background: var(--hero-solid);
   }
 
-  .dark-toggle,
+  .page-control,
   .settings-value,
   .quote-refresh {
     background: var(--glass-solid-soft);
@@ -2729,7 +2470,6 @@ html:has(dialog[open]) {
 
   /* 减少阴影层级，降低每帧合成开销 */
   .glass-card,
-  .widget-card,
   .shortcut-card,
   .search-zone {
     box-shadow:
@@ -2738,7 +2478,6 @@ html:has(dialog[open]) {
   }
 
   :root[data-theme="dark"] .glass-card,
-  :root[data-theme="dark"] .widget-card,
   :root[data-theme="dark"] .shortcut-card,
   :root[data-theme="dark"] .search-zone {
     box-shadow:
@@ -2775,53 +2514,35 @@ html:has(dialog[open]) {
     opacity: 1;
   }
 
-  .widget-card:hover {
-    transform: none;
-  }
-
-  .widget-card:hover .widget-ribbon {
-    width: 46px;
-  }
-
-  .widget-card:hover .edit-widget {
-    opacity: 0;
-  }
-
   .engine-select-button:hover,
   .search-input-wrap input:focus,
-  .quick-engines button:hover,
   .tabs button:hover,
   .actions button:hover,
-  .section-head button:hover,
   .sync-panel button:hover,
   .weather-refresh:hover,
   .icon-button:hover,
   .search-button:hover,
   .primary-button:hover,
-  .dark-toggle:hover,
+  .page-control:hover,
   .settings-value:hover,
-  .quote-refresh:hover,
-  .search-target:hover {
+  .quote-refresh:hover {
     transform: none;
   }
 
   /* 用按下反馈替代 hover 反馈 */
-  .shortcut-card:active,
-  .widget-card:active {
+  .shortcut-card:active {
     transform: scale(0.975);
   }
 
-  .quick-engines button:active,
   .tabs button:active,
   .actions button:active,
   .import-button:active,
-  .section-head button:active,
   .sync-panel button:active,
   .weather-refresh:active,
   .icon-button:active,
   .dialog-actions button:active,
   .quote-refresh:active,
-  .dark-toggle:active,
+  .page-control:active,
   .settings-value:active {
     transform: scale(0.95);
   }

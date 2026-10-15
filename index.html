@@ -30,7 +30,12 @@
       <span class="aurora aurora-mint"></span>
     </div>
     <div class="grain-layer" aria-hidden="true"></div>
-    <button id="darkToggleButton" class="dark-toggle" type="button" aria-label="切换暗色模式" title="切换暗色模式">暗</button>
+    <div class="page-controls" role="group" aria-label="页面设置">
+      <button id="darkToggleButton" class="page-control" type="button" aria-label="切换暗色模式" title="切换暗色模式">暗</button>
+      <button id="settingsButton" class="page-control" type="button" aria-label="打开设置" title="设置" aria-haspopup="dialog" aria-controls="settingsDialog" aria-expanded="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M8 4v6M16 14v6" /></svg>
+      </button>
+    </div>
 
     <main class="shell">
       <!-- 顶部：只保留日期 + 一句小新文案 -->
@@ -95,19 +100,8 @@
 
           <button class="search-button" type="submit">出发</button>
 
-          <button
-            class="search-target"
-            id="searchTargetButton"
-            type="button"
-            aria-pressed="false"
-            title="切换搜索结果的打开方式"
-          >
-            <span class="search-target-icon" id="searchTargetIcon" aria-hidden="true">↗</span>
-            <span class="search-target-text" id="searchTargetText">新标签页</span>
-          </button>
         </form>
 
-        <div class="quick-engines" id="engineButtons" aria-label="搜索引擎快捷切换"></div>
       </section>
 
       <!-- 快捷方式 -->
@@ -128,21 +122,6 @@
       </section>
 
       <section class="shortcut-grid" id="shortcutGrid" aria-label="快捷方式"></section>
-
-      <!-- 自定义小组件 -->
-      <section class="widget-board" aria-label="自定义小组件">
-        <div class="section-head">
-          <div>
-            <p>Widgets</p>
-            <h2>我的小组件</h2>
-          </div>
-          <button type="button" id="addWidgetButton">
-            <span>+</span>
-            添加组件
-          </button>
-        </div>
-        <div class="widget-grid" id="widgetGrid"></div>
-      </section>
 
       <!-- 底部信息区：天气 + 旧日历，两张玻璃卡 -->
       <section class="weather-stage" aria-label="天气和历史上的今天">
@@ -203,18 +182,15 @@
         </article>
       </section>
 
-      <!-- 低频设置与同步共用一个默认收起的入口。 -->
-      <details class="glass-card preferences-panel" id="preferencesPanel">
-        <summary class="preferences-summary">
-          <span class="preferences-title">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 17h16M8 4v6M16 14v6" /></svg>
-            设置与同步
-          </span>
-          <span class="preferences-hint">站名 · 搜索引擎 · 多设备同步</span>
-          <span class="preferences-sync-state" id="preferencesSyncState">仅本机</span>
-          <span class="preferences-chevron" aria-hidden="true"></span>
-        </summary>
-        <div class="preferences-content">
+    </main>
+
+    <dialog id="settingsDialog" class="settings-dialog" aria-labelledby="settingsDialogTitle">
+      <div class="dialog-card settings-dialog-card">
+        <div class="dialog-head">
+          <h2 id="settingsDialogTitle">设置</h2>
+          <button class="icon-button" id="closeSettingsDialogButton" type="button" aria-label="关闭设置">×</button>
+        </div>
+        <div class="settings-content">
           <section class="settings-panel" aria-label="偏好设置">
             <div class="settings-head"><h2>偏好设置</h2></div>
 
@@ -237,13 +213,21 @@
             </div>
 
             <div class="settings-row">
+              <label class="settings-label" for="searchTargetSelect">搜索打开方式</label>
+              <select id="searchTargetSelect">
+                <option value="_self">本标签页</option>
+                <option value="_blank">新标签页</option>
+              </select>
+            </div>
+
+            <div class="settings-row">
               <span class="settings-label">搜索引擎</span>
               <button class="settings-value" id="manageEnginesButton" type="button">管理搜索引擎</button>
             </div>
           </section>
 
           <section class="sync-panel" aria-label="多设备同步">
-            <h2>多设备同步</h2>
+            <h2 class="sync-heading">多设备同步 <span class="sync-state" id="preferencesSyncState">仅本机</span></h2>
             <label class="sync-key-field">
               <span>同步码</span>
               <input id="syncKeyInput" type="password" autocomplete="off" maxlength="80" placeholder="输入只有你知道的同步码" />
@@ -257,8 +241,8 @@
             <p id="syncStatus" data-tone="neutral">未开启同步，数据保存在本机。</p>
           </section>
         </div>
-      </details>
-    </main>
+      </div>
+    </dialog>
 
     <dialog id="engineDialog">
       <form method="dialog" class="dialog-card" id="engineForm">
@@ -275,7 +259,7 @@
           <span></span>
           <span></span>
           <button type="button" id="cancelEngineDialogButton">取消</button>
-          <button type="button" id="saveEngineButton" class="primary-button">保存</button>
+          <button type="submit" id="saveEngineButton" class="primary-button">保存</button>
         </div>
       </form>
     </dialog>
@@ -382,41 +366,6 @@
       </form>
     </dialog>
 
-    <dialog id="widgetDialog">
-      <form method="dialog" class="dialog-card" id="widgetForm">
-        <div class="dialog-head">
-          <h2 id="widgetDialogTitle">添加小组件</h2>
-          <button class="icon-button" type="button" id="closeWidgetDialogButton" aria-label="关闭">×</button>
-        </div>
-        <label>
-          标题
-          <input id="widgetTitle" type="text" required maxlength="24" placeholder="例如：今日计划" />
-        </label>
-        <label>
-          类型
-          <select id="widgetType">
-            <option value="note">便签</option>
-            <option value="countdown">倒计时</option>
-            <option value="link">链接</option>
-          </select>
-        </label>
-        <label>
-          内容
-          <textarea id="widgetContent" required maxlength="160" placeholder="便签文字、日期 2026-12-31，或链接地址"></textarea>
-        </label>
-        <label>
-          颜色
-          <input id="widgetColor" type="color" value="#2775d1" />
-        </label>
-        <div class="dialog-actions">
-          <button type="button" id="deleteWidgetButton" class="danger-button">删除</button>
-          <span></span>
-          <button type="button" id="cancelWidgetDialogButton">取消</button>
-          <button type="submit" class="primary-button">保存</button>
-        </div>
-      </form>
-    </dialog>
-
     <template id="shortcutTemplate">
       <article class="shortcut-card">
         <button class="pin-shortcut" type="button" aria-label="置顶快捷方式"></button>
@@ -428,18 +377,6 @@
           </span>
         </a>
         <button class="edit-shortcut" type="button" aria-label="编辑快捷方式">编辑</button>
-      </article>
-    </template>
-
-    <template id="widgetTemplate">
-      <article class="widget-card">
-        <div class="widget-ribbon"></div>
-        <div>
-          <p class="widget-type"></p>
-          <h3></h3>
-        </div>
-        <p class="widget-content"></p>
-        <button class="edit-widget" type="button" aria-label="编辑小组件">编辑</button>
       </article>
     </template>
 
