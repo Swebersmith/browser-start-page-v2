@@ -250,6 +250,142 @@ let metadataLookupTimer = null;
 let metadataLookupController = null;
 let currentShortcutIconUrl = "";
 
+/* 连续场景：只在交互时测量布局，动画只改变 transform / opacity。 */
+const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+const compactMotion = window.matchMedia("(pointer: coarse), (max-width: 860px)");
+const sceneAnimations = new Set();
+const dialogScenes = new WeakMap();
+const sceneEase = "cubic-bezier(0.22, 1, 0.36, 1)";
+
+function canAnimateScene() {
+  return !reducedMotion.matches && !document.hidden && typeof Element.prototype.animate === "function";
+}
+
+function playSceneMotion(node, frames, options) {
+  const animation = node.animate(frames, { easing: sceneEase, ...options });
+  sceneAnimations.add(animation);
+  const release = () => sceneAnimations.delete(animation);
+  animation.finished.then(release, release);
+  return animation;
+}
+
+reducedMotion.addEventListener("change", () => {
+  if (reducedMotion.matches) sceneAnimations.forEach((animation) => animation.cancel());
+});
+
+function readShortcutScene() {
+  const positions = new Map();
+  const nodes = document.querySelectorAll(".shortcut-card, .widget-board, .weather-stage, .settings-panel, .sync-panel");
+  nodes.forEach((node) => {
+    const rect = node.getBoundingClientRect();
+    if (rect.bottom > 0 && rect.top < window.innerHeight) {
+      positions.set(node.dataset.shortcutId || node, rect);
+    }
+  });
+  return positions;
+}
+
+function animateShortcutScene(previous) {
+  const compact = compactMotion.matches;
+  const limit = compact ? 12 : 24;
+  let count = 0;
+  const moves = [];
+  // 先批量读取，再批量启动动画，避免读写交替触发重复布局。
+  document.querySelectorAll(".shortcut-card, .widget-board, .weather-stage, .settings-panel, .sync-panel").forEach((node) => {
+    const next = node.getBoundingClientRect();
+    if (next.bottom <= 0 || next.top >= window.innerHeight || count >= limit) return;
+    const before = previous.get(node.dataset.shortcutId || node);
+    const dx = before ? before.left - next.left : 0;
+    const dy = before ? before.top - next.top : compact ? 8 : 16;
+    if (before && Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return;
+    moves.push({ node, dx, dy, entering: !before });
+    count += 1;
+  });
+  moves.forEach(({ node, dx, dy, entering }, index) => {
+    playSceneMotion(node, [
+      { transform: `translate(${dx}px, ${dy}px)`, opacity: entering ? 0 : 1 },
+      { transform: "translate(0, 0)", opacity: 1 },
+    ], { duration: compact ? 260 : 420, delay: entering ? Math.min(index * 12, 60) : 0, fill: "backwards" });
+  });
+}
+
+function openSurface(dialog) {
+  if (!dialog || dialog.open) return;
+  const opener = document.activeElement;
+  const origin = opener?.getBoundingClientRect();
+  dialog.classList.remove("is-closing");
+  dialog.showModal();
+  const rect = dialog.getBoundingClientRect();
+  const x = origin ? Math.max(-32, Math.min(32, (origin.left + origin.width / 2 - rect.left - rect.width / 2) * 0.08)) : 0;
+  const y = origin ? Math.max(-22, Math.min(22, (origin.top + origin.height / 2 - rect.top - rect.height / 2) * 0.08)) : 12;
+  const state = { opener, transform: `translate(${x}px, ${y}px) scale(0.96)`, animation: null, closing: false };
+  dialogScenes.set(dialog, state);
+  if (canAnimateScene()) {
+    state.animation = playSceneMotion(dialog, [
+      { opacity: 0, transform: state.transform },
+      { opacity: 1, transform: "translate(0, 0) scale(1)" },
+    ], { duration: compactMotion.matches ? 190 : 280 });
+  }
+}
+
+function closeSurface(dialog) {
+  if (!dialog?.open) return;
+  const state = dialogScenes.get(dialog);
+  if (state?.closing) return;
+  // 读取当前画面后再取消入场，快速开关时也从当前状态连续返回。
+  const current = getComputedStyle(dialog);
+  const start = { opacity: current.opacity, transform: current.transform };
+  state?.animation?.cancel();
+  if (!state || !canAnimateScene()) {
+    dialog.close();
+    return;
+  }
+  state.closing = true;
+  dialog.classList.add("is-closing");
+  state.animation = playSceneMotion(dialog, [start, { opacity: 0, transform: state.transform }], {
+    duration: compactMotion.matches ? 150 : 200,
+    fill: "forwards",
+  });
+  const finish = () => {
+    dialog.close();
+    state.animation.cancel();
+    dialog.classList.remove("is-closing");
+  };
+  state.animation.finished.then(finish, finish);
+}
+
+document.querySelectorAll("dialog").forEach((dialog) => {
+  dialog.addEventListener("submit", (event) => {
+    if (!dialogScenes.get(dialog)?.closing) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }, true);
+  dialog.addEventListener("cancel", (event) => {
+    event.preventDefault();
+    closeSurface(dialog);
+  });
+  dialog.addEventListener("close", () => {
+    const state = dialogScenes.get(dialog);
+    state?.animation?.cancel();
+    dialog.classList.remove("is-closing");
+    if (state?.opener?.isConnected) state.opener.focus({ preventScroll: true });
+    dialogScenes.delete(dialog);
+  });
+});
+
+elements.dialog.addEventListener("close", () => {
+  metadataLookupController?.abort();
+  window.clearTimeout(metadataLookupTimer);
+  editingId = null;
+  currentShortcutIconUrl = "";
+  setShortcutMetaStatus("");
+  elements.shortcutForm.reset();
+});
+elements.widgetDialog.addEventListener("close", () => {
+  editingWidgetId = null;
+  elements.widgetForm.reset();
+});
+
 function normalizeShortcut(item, index = 0) {
   return {
     id: item.id || createId(),
@@ -931,13 +1067,13 @@ function applySiteName(name) {
 function openSiteNameDialog() {
   if (!elements.siteNameDialog) return;
   elements.siteNameInput.value = loadSiteName();
-  elements.siteNameDialog.showModal();
+  openSurface(elements.siteNameDialog);
   elements.siteNameInput.focus();
   elements.siteNameInput.select();
 }
 
 function closeSiteNameDialog() {
-  elements.siteNameDialog?.close();
+  closeSurface(elements.siteNameDialog);
 }
 
 function saveSiteNameFromDialog(event) {
@@ -1043,11 +1179,11 @@ function openEngineDialog() {
   elements.engineRows.innerHTML = "";
   const list = customEngines.length ? customEngines : [{}];
   list.forEach((engine) => elements.engineRows.append(createEngineRow(engine)));
-  elements.engineDialog.showModal();
+  openSurface(elements.engineDialog);
 }
 
 function closeEngineDialog() {
-  elements.engineDialog?.close();
+  closeSurface(elements.engineDialog);
 }
 
 function saveEnginesFromDialog(event) {
@@ -1103,11 +1239,11 @@ function openAiDialog() {
   pendingAiShortcuts = null;
   elements.aiSettings.open = !aiConfig.apiKey;
 
-  elements.aiDialog.showModal();
+  openSurface(elements.aiDialog);
 }
 
 function closeAiDialog() {
-  elements.aiDialog?.close();
+  closeSurface(elements.aiDialog);
 }
 
 function collectAiConfig() {
@@ -1583,11 +1719,15 @@ function cleanupShortcutDragState() {
 }
 
 function renderShortcuts({ animate = false } = {}) {
+  const previous = animate && canAnimateScene() ? readShortcutScene() : null;
+  // 快速切换时先记录当前视觉位置，再取消旧动画，避免过期动画跳回。
+  sceneAnimations.forEach((animation) => {
+    if (!animation.effect?.target?.closest("dialog")) animation.cancel();
+  });
   const visibleShortcuts = getVisibleShortcuts();
 
-  elements.shortcutGrid.classList.toggle("is-switching", animate);
   elements.shortcutGrid.innerHTML = "";
-  visibleShortcuts.forEach((shortcut, index) => {
+  visibleShortcuts.forEach((shortcut) => {
     const node = elements.template.content.firstElementChild.cloneNode(true);
     const link = node.querySelector(".shortcut-link");
     const icon = node.querySelector(".shortcut-icon");
@@ -1601,8 +1741,6 @@ function renderShortcuts({ animate = false } = {}) {
     node.classList.toggle("is-pinned", Boolean(shortcut.pinned));
     link.href = shortcut.url;
     link.draggable = false;
-    node.classList.toggle("is-filtered-in", animate);
-    node.style.animationDelay = animate ? `${Math.min(index * 0.025, 0.16)}s` : "";
     applyShortcutIcon(icon, shortcut);
     title.textContent = shortcut.name;
     host.textContent = getHostname(shortcut.url);
@@ -1644,11 +1782,7 @@ function renderShortcuts({ animate = false } = {}) {
     elements.shortcutGrid.append(node);
   });
 
-  if (animate) {
-    window.setTimeout(() => {
-      elements.shortcutGrid.classList.remove("is-switching");
-    }, 280);
-  }
+  if (previous) animateShortcutScene(previous);
 }
 
 function render() {
@@ -1677,18 +1811,14 @@ function openDialog(id = null) {
   elements.categoryInput.value = shortcut?.category || (selectedCategory === ALL_CATEGORY ? "" : selectedCategory);
   elements.colorInput.value = shortcut?.color || "#e8442e";
   elements.deleteButton.hidden = !shortcut;
-  elements.dialog.showModal();
+  openSurface(elements.dialog);
   elements.urlInput.focus();
 }
 
 function closeDialog() {
   metadataLookupController?.abort();
   window.clearTimeout(metadataLookupTimer);
-  elements.dialog.close();
-  editingId = null;
-  currentShortcutIconUrl = "";
-  setShortcutMetaStatus("");
-  elements.shortcutForm.reset();
+  closeSurface(elements.dialog);
 }
 
 function saveFromDialog(event) {
@@ -1758,7 +1888,7 @@ function formatWidgetContent(widget) {
 
 function renderWidgets() {
   elements.widgetGrid.innerHTML = "";
-  widgets.forEach((widget, index) => {
+  widgets.forEach((widget) => {
     const node = elements.widgetTemplate.content.firstElementChild.cloneNode(true);
     const ribbon = node.querySelector(".widget-ribbon");
     const type = node.querySelector(".widget-type");
@@ -1766,7 +1896,6 @@ function renderWidgets() {
     const content = node.querySelector(".widget-content");
     const editButton = node.querySelector(".edit-widget");
 
-    node.style.animationDelay = `${Math.min(index * 0.05, 0.3)}s`;
     ribbon.style.background = widget.color;
     type.textContent = getWidgetTypeLabel(widget.type);
     title.textContent = widget.title;
@@ -1793,14 +1922,12 @@ function openWidgetDialog(id = null) {
   elements.widgetContent.value = widget?.content || "";
   elements.widgetColor.value = widget?.color || "#2775d1";
   elements.deleteWidgetButton.hidden = !widget;
-  elements.widgetDialog.showModal();
+  openSurface(elements.widgetDialog);
   elements.widgetTitle.focus();
 }
 
 function closeWidgetDialog() {
-  elements.widgetDialog.close();
-  editingWidgetId = null;
-  elements.widgetForm.reset();
+  closeSurface(elements.widgetDialog);
 }
 
 function saveWidgetFromDialog(event) {

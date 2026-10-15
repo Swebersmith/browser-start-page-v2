@@ -5,6 +5,9 @@
 
 :root {
   color-scheme: light;
+  --scene-duration: 520ms;
+  --scene-stagger: 45ms;
+  --scene-distance: 18px;
 
   /* 低饱和小新色 */
   --coral: #e0866f;
@@ -111,10 +114,19 @@
 
 * {
   box-sizing: border-box;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 html {
   min-height: 100%;
+  overflow-x: hidden;
   /* 去掉移动端点击时系统默认的蓝色/灰色高亮方块 */
   -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
@@ -142,7 +154,7 @@ body {
   margin: 0;
   color: var(--ink);
   font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI", system-ui, sans-serif;
-  overflow-x: hidden;
+  overflow-x: clip;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -412,8 +424,21 @@ button {
   flex-direction: column;
   margin: 0 auto;
   padding: 42px 0 64px;
-  animation: page-enter 0.6s var(--ease-soft) both;
 }
+
+/* 固定背景作为连续镜头的锚点，各区块沿同一方向依次落位。 */
+.shell > * {
+  animation: scene-enter var(--scene-duration) var(--ease-soft) backwards;
+  animation-delay: calc(var(--scene-step, 0) * var(--scene-stagger));
+}
+
+.search-zone { --scene-step: 1; }
+.toolbar { --scene-step: 2; }
+.shortcut-grid { --scene-step: 3; }
+.widget-board { --scene-step: 4; }
+.weather-stage { --scene-step: 5; }
+.settings-panel { --scene-step: 6; }
+.sync-panel { --scene-step: 7; }
 
 /* ---------- 顶部：日期 + 一句文案 ---------- */
 
@@ -1547,7 +1572,6 @@ button {
   background: var(--glass-flat);
   box-shadow: var(--glass-shadow), var(--glass-inner);
   overflow: hidden;
-  animation: card-enter 0.5s var(--ease-soft) backwards;
   transition:
     transform 0.26s var(--ease-soft),
     box-shadow 0.26s var(--ease-soft);
@@ -1603,14 +1627,6 @@ button {
 .shortcut-card.is-drop-target {
   outline: 2px solid rgba(123, 169, 198, 0.65);
   outline-offset: 3px;
-}
-
-.shortcut-grid.is-switching .shortcut-card {
-  animation: card-enter 0.42s var(--ease-soft) backwards;
-}
-
-.shortcut-card.is-filtered-in {
-  animation: card-enter 0.42s var(--ease-soft) backwards;
 }
 
 .shortcut-link {
@@ -2332,6 +2348,11 @@ button {
 
 dialog {
   width: min(440px, calc(100% - 30px));
+  max-height: calc(100vh - 30px);
+  max-height: calc(100dvh - 30px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
   border: none;
   border-radius: var(--radius-card);
   padding: 0;
@@ -2343,6 +2364,18 @@ dialog::backdrop {
   background: rgba(59, 57, 54, 0.34);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
+}
+
+dialog[open]::backdrop {
+  animation: surface-backdrop 200ms ease both;
+}
+
+dialog.is-closing::backdrop {
+  animation: surface-backdrop 150ms ease reverse both;
+}
+
+dialog.is-closing {
+  pointer-events: none;
 }
 
 .dialog-card {
@@ -2483,10 +2516,10 @@ dialog::backdrop {
 
 /* ---------- 动效 ---------- */
 
-@keyframes page-enter {
+@keyframes scene-enter {
   from {
     opacity: 0;
-    transform: translateY(14px);
+    transform: translateY(var(--scene-distance));
   }
   to {
     opacity: 1;
@@ -2494,43 +2527,14 @@ dialog::backdrop {
   }
 }
 
-@keyframes card-enter {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+@keyframes surface-backdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-@keyframes dialog-fade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes dialog-pop {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-dialog[open] {
-  animation: dialog-fade 0.2s ease both;
-}
-
-dialog[open] .dialog-card {
-  animation: dialog-pop 0.26s var(--ease-soft) both;
+/* 动画作用于弹窗自身，内部表单保持静止，避免缩放时产生临时滚动区。 */
+html:has(dialog[open]) {
+  overflow-y: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2686,6 +2690,21 @@ dialog[open] .dialog-card {
    ========================================================================== */
 
 @media (pointer: coarse), (max-width: 860px) {
+  :root {
+    --scene-duration: 320ms;
+    --scene-stagger: 28ms;
+    --scene-distance: 9px;
+  }
+
+  dialog::backdrop {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  dialog {
+    background: var(--cream);
+  }
+
   .glass-card,
   .search-zone,
   .widget-card,
