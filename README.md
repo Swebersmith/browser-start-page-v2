@@ -110,7 +110,6 @@ v2 使用独立的 D1 数据库，已经创建完成并跑过建表迁移，`wra
 ```txt
 Worker 名称：browser-start-page-v2
 D1 数据库：  browser-start-page-db-v2
-database_id：dfeb69d9-c949-406e-94d4-dc27c656c029
 binding：    DB（必须保持这个名字，Worker 代码里用的是 env.DB）
 ```
 
