@@ -2,11 +2,24 @@
 
 一个可以部署到 VPS 的静态浏览器起始页，包含搜索引擎切换、快捷方式分组、添加/编辑/删除、导入/导出、搜索偏好和多设备同步。
 
+- 天气卡可展开当前天气、未来 7 天与逐小时预报，支持定位和手动搜索城市。
+- 历史上的今天通过本站代理获取，提供并行源回退、按日期的 D1 缓存和本机缓存；点击事件可看简介、相关词条和来源。
+- AI 整理支持预先保存指令、新建分组、名称优化、重复网址合并、置顶和排序选项，以及可选网站信息补充；先预览后应用，并可撤销。
+- 卡片与弹窗采用共享来源的延展、拉伸回弹和反向收起，支持系统减少动态效果设置。
+
 搜索框上沿使用生成的六角色透明插画，素材与生成提示词保存在 `assets/illustrations/`；构建时会自动复制实际引用的图片。
 
 ## 本地打开
 
-直接用浏览器打开 `index.html` 即可。
+前端使用 JavaScript 模块，需要通过 HTTP 服务打开。推荐使用本地 Worker，同时运行天气、历史、AI 和同步接口：
+
+```bash
+npm install
+npm run build
+npx wrangler dev
+```
+
+纯静态服务器可使用搜索和本机快捷方式；天气、历史详情、AI 代理和同步需要部署本仓库的 Worker API。
 
 如果要先生成部署产物：
 
@@ -82,6 +95,9 @@ docker run -d --name launchpad -p 8080:80 -v "$PWD":/usr/share/nginx/html:ro ngi
 
 - `GET /api/sync/:syncKey`：按同步码读取快捷方式和偏好设置。
 - `PUT /api/sync/:syncKey`：按同步码保存快捷方式和偏好设置。
+- `GET /api/weather`、`GET /api/weather/cities`：当前天气、7 天及逐小时预报和城市搜索。
+- `GET /api/today-history?date=YYYY-MM-DD`、`GET /api/history-detail`：当天事件及相关词条介绍。
+- `POST /api/ai`：将用户指令和快捷方式信息发送到用户配置的模型接口。
 
 未配置 D1 数据库时，网页仍可正常打开，但同步面板会提示数据库未配置。
 

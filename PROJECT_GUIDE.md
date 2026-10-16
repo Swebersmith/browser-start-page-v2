@@ -28,7 +28,9 @@
 - 主搜索框，支持 Google、Bing、百度、DuckDuckGo、GitHub。
 - 左侧自定义搜索引擎下拉菜单。
 - 快捷方式分组、添加、编辑、删除、导入、导出。
-- 当前时间和天气面板。
+- 当前时间、可展开的天气面板（当前、7 天、24 小时），支持城市搜索和定位。
+- 历史上的今天详情、并行源回退与按日期缓存。
+- AI 指令整理、新分组预览、可撤销应用。
 - 五个角色与小白趴在搜索框上沿的透明简笔插画。
 - 多设备同步：输入同一个同步码后，不同设备会同步快捷方式、搜索历史和偏好设置。
 - 创建新同步码需要服务端密码；已有同步码照常连接。密码使用 Cloudflare Secret `SYNC_CREATE_PASSWORD`，不要写入前端、仓库或同步载荷。
@@ -38,8 +40,12 @@
 ```txt
 index.html                 页面结构
 styles.css                 页面样式和响应式布局
-script.js                  前端交互、天气、快捷方式、设置弹窗、同步逻辑
+script.js                  快捷方式、设置、同步与共享来源弹性动画
+dashboard.js               天气、城市搜索、历史详情及本机缓存
+ai-ui.js                   AI 指令、预览、取消与撤销
+organize.js                AI 结果校验与数据保留规则
 src/worker.js              Cloudflare Worker API，处理 /api/sync/:syncKey
+src/content.js             天气与历史代理、同日 D1 缓存、详情
 wrangler.jsonc             Cloudflare Workers 配置，包含 Static Assets 和 D1 绑定
 package.json               构建、部署、D1 迁移命令
 scripts/build.mjs          构建脚本，把静态文件复制到 dist/
@@ -150,9 +156,10 @@ CREATE TABLE IF NOT EXISTS sync_profiles (
 
 入口在快捷方式工具条的「AI 整理」按钮，默认接 DeepSeek。
 
-- 浏览器直连大模型接口基本都会被 CORS 挡掉（DeepSeek 同样如此），
-  所以请求走本站 Worker 的 `POST /api/ai` 代为转发；本地直接打开 `index.html`
-  时没有 Worker，会自动退回浏览器直连（需要接口本身允许跨域）。
+- 请求通过本站 Worker 的 `POST /api/ai` 转发；前端是 JavaScript 模块，本地调试运行 `npm run build` 和 `npx wrangler dev`。
+- `ai-ui.js` 保存本机指令草稿，支持用途/域名/学习预设，发送名称、网址、域名、路径、分组、置顶和访问记录；勾选后才补充最多 20 项网站标题与简介。
+- `organize.js` 只接受已有 id，不允许改写网址；遗漏项自动恢复，去重只合并完全相同的网址（路径、参数区分大小写），保留图标、颜色和访问记录。
+- 应用前检查快捷方式是否在预览期间发生变化；应用后保存本机撤销快照，后续编辑会使旧撤销入口失效。
 - `/api/ai` 只做透传，**不保存 API Key**；Key 存在浏览器 localStorage
   （`browser-launchpad-ai-config-v1`），**不参与同步**。
 - 接口地址、模型名、Key 都可以在弹窗的「模型设置」里改，任何 OpenAI 兼容接口都行。
@@ -231,7 +238,7 @@ await db.prepare(schemaSql).run();
 - 登录或管理密码，替代纯同步码。
 - 给同步码加哈希存储，减少明文暴露。
 - 快捷方式排序、拖拽、图标上传。
-- 天气城市手动选择，避免每次依赖浏览器定位。
+- 天气城市手动选择已实现，位置与天气缓存只保存在这台浏览器。
 - D1 数据版本号，解决多设备同时编辑覆盖问题。
 
 ## 性能约束（改样式前先看这里）

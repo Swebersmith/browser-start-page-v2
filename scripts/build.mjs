@@ -1,7 +1,7 @@
 import { cp, mkdir, readFile, rm, stat } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
-const files = ["index.html", "styles.css", "script.js", "README.md", "sw.js"];
+const files = ["index.html", "styles.css", "script.js", "organize.js", "ai-ui.js", "dashboard.js", "README.md", "sw.js"];
 
 await rm("dist", { recursive: true, force: true });
 await mkdir("dist", { recursive: true });

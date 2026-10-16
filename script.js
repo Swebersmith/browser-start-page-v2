@@ -1,3 +1,6 @@
+import { initDashboard } from "./dashboard.js";
+import { initAiOrganizer } from "./ai-ui.js";
+
 const STORAGE_KEY = "browser-launchpad-shortcuts-v1";
 const ENGINE_KEY = "browser-launchpad-engine-v1";
 const LEGACY_WIDGETS_KEY = "browser-launchpad-widgets-v1";
@@ -7,38 +10,11 @@ const DARK_MODE_KEY = "browser-launchpad-dark-mode-v1";
 const SITE_NAME_KEY = "browser-launchpad-site-name-v1";
 const CUSTOM_ENGINE_KEY = "browser-launchpad-custom-engines-v1";
 const PREF_KEY = "browser-launchpad-prefs-v1";
-const AI_CONFIG_KEY = "browser-launchpad-ai-config-v1";
 const DEFAULT_SITE_NAME = "快捷首页";
 const MAX_SITE_NAME = 30;
-const DEFAULT_ENGINE_BASE = "https://api.deepseek.com/v1";
-const DEFAULT_AI_MODEL = "deepseek-chat";
 const MAX_SEARCH_HISTORY = 8;
 const ALL_CATEGORY = "全部";
 const DEFAULT_CATEGORY = "常用";
-
-/* 每日台词：按当天日期轮换，也可以点「换一句」手动切换 */
-const DAILY_QUOTES = [
-  { text: "我回来了！", author: "野原新之助" },
-  { text: "大象，大象，你的鼻子为什么那么长～", author: "野原新之助" },
-  { text: "美女姐姐，要不要和我一起玩？", author: "野原新之助" },
-  { text: "我叫野原新之助，今年五岁。", author: "野原新之助" },
-  { text: "动感超人，出动！", author: "野原新之助" },
-  { text: "妈妈，我肚子饿了。", author: "野原新之助" },
-  { text: "我一点都不奇怪哦。", author: "野原新之助" },
-  { text: "这种事，等我长大再说吧。", author: "野原新之助" },
-  { text: "春日部防卫队，集合！", author: "春日部防卫队" },
-  { text: "我是野原广志，今年三十五岁。", author: "野原广志" },
-  { text: "人生啊，就是要不停地妥协。", author: "野原广志" },
-  { text: "新之助，你给我适可而止！", author: "野原美冴" },
-  { text: "再不快点，上学就要迟到了！", author: "野原美冴" },
-  { text: "今天的晚饭，就交给我吧。", author: "野原美冴" },
-  { text: "新之助，你别闹了啦。", author: "风间彻" },
-  { text: "我们来玩过家家吧。", author: "樱田妮妮" },
-  { text: "呜呜……好可怕……", author: "佐藤正男" },
-  { text: "……", author: "阿呆" },
-  { text: "汪！", author: "小白" },
-  { text: "向日葵班的各位，今天也要加油哦。", author: "园长先生" },
-];
 
 const builtinEngines = [
   { id: "google", name: "Google", mark: "G", url: "https://www.google.com/search?q=" },
@@ -47,35 +23,7 @@ const builtinEngines = [
   { id: "duckduckgo", name: "DuckDuckGo", mark: "D", url: "https://duckduckgo.com/?q=" },
   { id: "github", name: "GitHub", mark: "GH", url: "https://github.com/search?q=" },
 ];
-
-/* 内置引擎 + 用户自定义引擎 */
-function getEngines() {
-  return [...builtinEngines, ...customEngines];
-}
-
-const weatherCodeMap = {
-  0: { label: "晴朗", mark: "晴" },
-  1: { label: "大致晴朗", mark: "晴" },
-  2: { label: "局部多云", mark: "云" },
-  3: { label: "阴天", mark: "阴" },
-  45: { label: "有雾", mark: "雾" },
-  48: { label: "雾凇", mark: "雾" },
-  51: { label: "小毛毛雨", mark: "雨" },
-  53: { label: "毛毛雨", mark: "雨" },
-  55: { label: "较强毛毛雨", mark: "雨" },
-  61: { label: "小雨", mark: "雨" },
-  63: { label: "中雨", mark: "雨" },
-  65: { label: "大雨", mark: "雨" },
-  71: { label: "小雪", mark: "雪" },
-  73: { label: "中雪", mark: "雪" },
-  75: { label: "大雪", mark: "雪" },
-  80: { label: "阵雨", mark: "雨" },
-  81: { label: "中等阵雨", mark: "雨" },
-  82: { label: "强阵雨", mark: "雨" },
-  95: { label: "雷雨", mark: "雷" },
-  96: { label: "雷雨伴冰雹", mark: "雷" },
-  99: { label: "强雷雨伴冰雹", mark: "雷" },
-};
+function getEngines() { return [...builtinEngines, ...customEngines]; }
 
 function createId() {
   if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -93,44 +41,9 @@ const defaultShortcuts = [
   { id: createId(), name: "阿里云", url: "https://www.aliyun.com", category: "服务器", color: "#ff6a00" },
 ];
 
-const fallbackHistoryEvents = {
-  "01-01": {
-    domestic: [{ year: "1912", title: "中华民国临时政府在南京成立", detail: "孙中山在南京就任临时大总统，中华民国临时政府成立。" }],
-    world: [{ year: "1804", title: "海地宣布独立", detail: "海地成为拉丁美洲和加勒比地区首个独立共和国。" }],
-  },
-  "02-12": {
-    domestic: [{ year: "1912", title: "清帝退位，清朝统治结束", detail: "溥仪颁布退位诏书，中国两千多年君主专制制度走向终结。" }],
-    world: [{ year: "1809", title: "亚伯拉罕·林肯出生", detail: "林肯后来成为美国第十六任总统。" }],
-  },
-  "05-04": {
-    domestic: [{ year: "1919", title: "五四运动爆发", detail: "北京学生举行示威，推动了反帝反封建爱国运动。" }],
-    world: [{ year: "1979", title: "撒切尔夫人出任英国首相", detail: "她成为英国首位女性首相。" }],
-  },
-  "07-01": {
-    domestic: [{ year: "1921", title: "中国共产党成立纪念日", detail: "中国共产党第一次全国代表大会召开于 1921 年，7 月 1 日后来被定为建党纪念日。" }],
-    world: [{ year: "1867", title: "加拿大联邦成立", detail: "加拿大自治领在这一天成立。" }],
-  },
-  "10-01": {
-    domestic: [{ year: "1949", title: "中华人民共和国中央人民政府成立", detail: "开国大典在北京天安门广场举行。" }],
-    world: [{ year: "1960", title: "尼日利亚宣布独立", detail: "尼日利亚结束英国殖民统治，成为独立国家。" }],
-  },
-  "12-13": {
-    domestic: [{ year: "2014", title: "中国设立南京大屠杀死难者国家公祭日", detail: "中国首次举行南京大屠杀死难者国家公祭仪式。" }],
-    world: [{ year: "1937", title: "南京大屠杀发生", detail: "这段历史提醒人们珍视和平与生命。" }],
-  },
-};
-
-const TODAY_HISTORY_PUBLIC_API = "https://60s.viki.moe/v2/today-in-history";
-
 const elements = {
   dateText: document.querySelector("#dateText"),
   stageTimeText: document.querySelector("#stageTimeText"),
-  weatherPanel: document.querySelector("#weatherPanel"),
-  weatherIcon: document.querySelector("#weatherIcon"),
-  weatherTemp: document.querySelector("#weatherTemp"),
-  weatherLocation: document.querySelector("#weatherLocation"),
-  weatherDesc: document.querySelector("#weatherDesc"),
-  weatherRefreshButton: document.querySelector("#weatherRefreshButton"),
   searchZone: document.querySelector(".search-zone"),
   searchForm: document.querySelector("#searchForm"),
   searchInputWrap: document.querySelector(".search-input-wrap"),
@@ -181,17 +94,7 @@ const elements = {
   closeSiteNameDialogButton: document.querySelector("#closeSiteNameDialogButton"),
   cancelSiteNameDialogButton: document.querySelector("#cancelSiteNameDialogButton"),
   resetSiteNameButton: document.querySelector("#resetSiteNameButton"),
-  quoteText: document.querySelector("#quoteText"),
-  quoteAuthor: document.querySelector("#quoteAuthor"),
-  quoteRefreshButton: document.querySelector("#quoteRefreshButton"),
   searchHistory: document.querySelector("#searchHistory"),
-  historyPanel: document.querySelector("#historyPanel"),
-  todayHistorySource: document.querySelector("#todayHistorySource"),
-  todayHistoryDomestic: document.querySelector("#todayHistoryDomestic"),
-  todayHistoryWorld: document.querySelector("#todayHistoryWorld"),
-  weatherFeels: document.querySelector("#weatherFeels"),
-  weatherHumidity: document.querySelector("#weatherHumidity"),
-  weatherWind: document.querySelector("#weatherWind"),
   defaultCategorySelect: document.querySelector("#defaultCategorySelect"),
   manageEnginesButton: document.querySelector("#manageEnginesButton"),
   engineDialog: document.querySelector("#engineDialog"),
@@ -201,27 +104,12 @@ const elements = {
   saveEngineButton: document.querySelector("#saveEngineButton"),
   closeEngineDialogButton: document.querySelector("#closeEngineDialogButton"),
   cancelEngineDialogButton: document.querySelector("#cancelEngineDialogButton"),
-  aiOrganizeButton: document.querySelector("#aiOrganizeButton"),
-  aiDialog: document.querySelector("#aiDialog"),
-  aiForm: document.querySelector("#aiForm"),
-  aiSettings: document.querySelector("#aiSettings"),
-  aiBaseUrl: document.querySelector("#aiBaseUrl"),
-  aiModel: document.querySelector("#aiModel"),
-  aiApiKey: document.querySelector("#aiApiKey"),
-  aiStatus: document.querySelector("#aiStatus"),
-  aiResult: document.querySelector("#aiResult"),
-  aiRunButton: document.querySelector("#aiRunButton"),
-  aiApplyButton: document.querySelector("#aiApplyButton"),
-  closeAiDialogButton: document.querySelector("#closeAiDialogButton"),
-  cancelAiDialogButton: document.querySelector("#cancelAiDialogButton"),
 };
 
 let shortcuts = loadShortcuts();
 let legacyWidgets = loadLegacyWidgets();
 let customEngines = loadCustomEngines();
 let prefs = loadPrefs();
-let aiConfig = loadAiConfig();
-let pendingAiShortcuts = null;
 let searchHistory = loadSearchHistory();
 let searchHistoryRequested = false;
 let searchHistoryHideTimer = null;
@@ -289,28 +177,43 @@ function animateShortcutScene(previous) {
   });
   moves.forEach(({ node, dx, dy, entering }, index) => {
     playSceneMotion(node, [
-      { transform: `translate(${dx}px, ${dy}px)`, opacity: entering ? 0 : 1 },
-      { transform: "translate(0, 0)", opacity: 1 },
-    ], { duration: compact ? 260 : 420, delay: entering ? Math.min(index * 12, 60) : 0, fill: "backwards" });
+      { transform: `translate(${dx}px, ${dy}px) scale(${Math.abs(dx) > Math.abs(dy) ? "1.025, 0.98" : "0.98, 1.025"})`, opacity: entering ? 0 : 1 },
+      { transform: "translate(0, -1px) scale(1.012, 0.99)", opacity: 1, offset: 0.72 },
+      { transform: "translate(0, 0) scale(1, 1)", opacity: 1 },
+    ], { duration: compact ? 340 : 480, delay: entering ? Math.min(index * 12, 60) : 0, fill: "backwards" });
   });
 }
 
-function openSurface(dialog) {
+function surfaceOrigin(source, rect) {
+  const origin = source?.isConnected ? source.getBoundingClientRect() : null;
+  if (!origin?.width || !origin?.height) return "translate(0, 16px) scale(0.94, 0.98)";
+  const dx = origin.left + origin.width / 2 - rect.left - rect.width / 2;
+  const dy = origin.top + origin.height / 2 - rect.top - rect.height / 2;
+  const sx = Math.min(1.2, Math.max(0.035, origin.width / rect.width));
+  const sy = Math.min(1.2, Math.max(0.035, origin.height / rect.height));
+  return `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`;
+}
+
+function openSurface(dialog, source = document.activeElement) {
   if (!dialog || dialog.open) return;
   const opener = document.activeElement;
-  const origin = opener?.getBoundingClientRect();
   dialog.classList.remove("is-closing");
   dialog.showModal();
   const rect = dialog.getBoundingClientRect();
-  const x = origin ? Math.max(-32, Math.min(32, (origin.left + origin.width / 2 - rect.left - rect.width / 2) * 0.08)) : 0;
-  const y = origin ? Math.max(-22, Math.min(22, (origin.top + origin.height / 2 - rect.top - rect.height / 2) * 0.08)) : 12;
-  const state = { opener, transform: `translate(${x}px, ${y}px) scale(0.96)`, animation: null, closing: false };
+  const state = { opener, source, transform: surfaceOrigin(source, rect), animation: null, contentAnimation: null, closing: false };
   dialogScenes.set(dialog, state);
   if (canAnimateScene()) {
+    source?.classList.add("is-origin-active");
     state.animation = playSceneMotion(dialog, [
-      { opacity: 0, transform: state.transform },
-      { opacity: 1, transform: "translate(0, 0) scale(1)" },
-    ], { duration: compactMotion.matches ? 190 : 280 });
+      { opacity: 0.25, transform: state.transform, offset: 0, easing: "cubic-bezier(0.2, 0.8, 0.2, 1)" },
+      { opacity: 1, transform: "translate(0, -3px) scale(1.028, 0.978)", offset: 0.62, easing: "ease-in-out" },
+      { opacity: 1, transform: "translate(0, 1px) scale(0.994, 1.009)", offset: 0.82, easing: "ease-out" },
+      { opacity: 1, transform: "translate(0, 0) scale(1, 1)" },
+    ], { duration: compactMotion.matches ? 400 : 500, easing: "linear" });
+    const card = dialog.querySelector(".dialog-card");
+    if (card) state.contentAnimation = playSceneMotion(card, [
+      { opacity: 0, offset: 0 }, { opacity: 0, offset: 0.13 }, { opacity: 1, offset: 0.65 }, { opacity: 1 },
+    ], { duration: compactMotion.matches ? 320 : 430, easing: "linear" });
   }
 }
 
@@ -318,18 +221,24 @@ function closeSurface(dialog) {
   if (!dialog?.open) return;
   const state = dialogScenes.get(dialog);
   if (state?.closing) return;
+  dialog.dispatchEvent(new Event("surfaceclosing"));
   // 读取当前画面后再取消入场，快速开关时也从当前状态连续返回。
   const current = getComputedStyle(dialog);
   const start = { opacity: current.opacity, transform: current.transform };
   state?.animation?.cancel();
+  state?.contentAnimation?.cancel();
   if (!state || !canAnimateScene()) {
     dialog.close();
     return;
   }
   state.closing = true;
   dialog.classList.add("is-closing");
-  state.animation = playSceneMotion(dialog, [start, { opacity: 0, transform: state.transform }], {
-    duration: compactMotion.matches ? 150 : 200,
+  const destination = surfaceOrigin(state.source, dialog.getBoundingClientRect());
+  state.animation = playSceneMotion(dialog, [start,
+    { opacity: 1, transform: "translate(0, 3px) scale(0.975, 1.025)", offset: 0.18, easing: "cubic-bezier(0.6, 0, 0.8, 0.2)" },
+    { opacity: 0, transform: destination },
+  ], {
+    duration: compactMotion.matches ? 260 : 330, easing: "linear",
     fill: "forwards",
   });
   const finish = () => {
@@ -372,11 +281,36 @@ document.querySelectorAll("dialog").forEach((dialog) => {
   dialog.addEventListener("close", () => {
     const state = dialogScenes.get(dialog);
     state?.animation?.cancel();
+    state?.contentAnimation?.cancel();
+    state?.source?.classList.remove("is-origin-active");
     dialog.classList.remove("is-closing");
     if (state?.opener?.isConnected) state.opener.focus({ preventScroll: true });
     dialogScenes.delete(dialog);
   });
 });
+
+// A short press deforms around the touch point and releases with a damped spring.
+const pressMotions = new WeakMap();
+let pressedControl = null;
+document.addEventListener("pointerdown", event => {
+  if (!event.isPrimary || event.button !== 0 || !canAnimateScene()) return;
+  const target = event.target.closest("button:not(:disabled)");
+  if (!target || target.closest(".is-closing")) return;
+  pressedControl = target;
+  pressMotions.get(target)?.cancel();
+  pressMotions.set(target, playSceneMotion(target, [{ transform: "scale(1, 1)" }, { transform: "scale(0.955, 1.025)" }], { duration: 100, fill: "forwards" }));
+}, { passive: true });
+function releasePress() {
+  const target = pressedControl; pressedControl = null;
+  if (!target) return;
+  const transform = getComputedStyle(target).transform;
+  pressMotions.get(target)?.cancel();
+  if (!canAnimateScene()) return;
+  pressMotions.set(target, playSceneMotion(target, [{ transform }, { transform: "scale(1.025, 0.985)", offset: 0.55 }, { transform: "scale(1, 1)" }], { duration: 280 }));
+}
+document.addEventListener("pointerup", releasePress, { passive: true });
+document.addEventListener("pointercancel", releasePress, { passive: true });
+window.addEventListener("blur", releasePress);
 
 elements.dialog.addEventListener("close", () => {
   metadataLookupController?.abort();
@@ -401,6 +335,8 @@ function normalizeShortcut(item, index = 0) {
     pinned: Boolean(item.pinned),
     icon: typeof item.icon === "string" ? item.icon : "",
     order: Number.isFinite(Number(item.order)) ? Number(item.order) : index,
+    visits: Math.max(0, Number(item.visits) || 0),
+    lastVisited: typeof item.lastVisited === "string" ? item.lastVisited.slice(0, 32) : "",
   };
 }
 
@@ -420,6 +356,7 @@ function loadShortcuts() {
 
 function saveShortcuts() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(shortcuts));
+  document.dispatchEvent(new Event("shortcutschange"));
   scheduleCloudSave();
 }
 
@@ -494,28 +431,6 @@ function setSearchTarget(target) {
 function savePrefs() {
   localStorage.setItem(PREF_KEY, JSON.stringify(prefs));
   scheduleCloudSave();
-}
-
-/* API Key 只留在本机，不参与同步 */
-function loadAiConfig() {
-  const base = { baseUrl: DEFAULT_ENGINE_BASE, model: DEFAULT_AI_MODEL, apiKey: "" };
-  const raw = localStorage.getItem(AI_CONFIG_KEY);
-  if (!raw) return base;
-
-  try {
-    const parsed = JSON.parse(raw);
-    return {
-      baseUrl: String(parsed?.baseUrl || base.baseUrl).slice(0, 200),
-      model: String(parsed?.model || base.model).slice(0, 60),
-      apiKey: String(parsed?.apiKey || "").slice(0, 200),
-    };
-  } catch {
-    return base;
-  }
-}
-
-function saveAiConfig() {
-  localStorage.setItem(AI_CONFIG_KEY, JSON.stringify(aiConfig));
 }
 
 function loadSearchHistory() {
@@ -1237,342 +1152,6 @@ function saveEnginesFromDialog(event) {
   closeEngineDialog();
 }
 
-/* ---------- AI 整理快捷方式 ---------- */
-
-const AI_SYSTEM_PROMPT = [
-  "你是一个浏览器起始页的快捷方式整理助手。",
-  "用户会给你一个 JSON 数组，每项包含 name（名称）、url（网址）、category（分组）。",
-  "请重新整理，规则：",
-  "1. 合并指向同一站点的重复项。",
-  "2. 分组名尽量简短（2-4 个汉字），把同类网站归到一起。",
-  "3. 名称保持简短清晰，去掉多余的营销词。",
-  "4. 不要凭空新增，也不要丢掉有效的快捷方式。",
-  "5. url 必须原样保留，不要改动。",
-  '只输出 JSON，格式：{"shortcuts":[{"name":"...","url":"...","category":"..."}]}',
-].join("\n");
-
-function openAiDialog() {
-  if (!elements.aiDialog) return;
-
-  elements.aiBaseUrl.value = aiConfig.baseUrl;
-  elements.aiModel.value = aiConfig.model;
-  elements.aiApiKey.value = aiConfig.apiKey;
-  elements.aiStatus.textContent = "";
-  elements.aiResult.hidden = true;
-  elements.aiResult.textContent = "";
-  elements.aiApplyButton.disabled = true;
-  pendingAiShortcuts = null;
-  elements.aiSettings.open = !aiConfig.apiKey;
-
-  openSurface(elements.aiDialog);
-}
-
-function closeAiDialog() {
-  closeSurface(elements.aiDialog);
-}
-
-function collectAiConfig() {
-  aiConfig = {
-    baseUrl: elements.aiBaseUrl.value.trim() || DEFAULT_ENGINE_BASE,
-    model: elements.aiModel.value.trim() || DEFAULT_AI_MODEL,
-    apiKey: elements.aiApiKey.value.trim(),
-  };
-  saveAiConfig();
-  return aiConfig;
-}
-
-function parseAiResult(content) {
-  const text = String(content || "").trim();
-  const start = text.indexOf("{");
-  const end = text.lastIndexOf("}");
-  if (start < 0 || end <= start) return null;
-
-  let data;
-  try {
-    data = JSON.parse(text.slice(start, end + 1));
-  } catch {
-    return null;
-  }
-
-  const list = Array.isArray(data?.shortcuts) ? data.shortcuts : Array.isArray(data) ? data : null;
-  if (!list) return null;
-
-  const seen = new Set();
-  const result = [];
-  for (const item of list) {
-    const url = String(item?.url || "").trim();
-    const name = String(item?.name || "").trim().slice(0, 24);
-    if (!url || !name) continue;
-    const key = url.replace(/\/+$/, "").toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push({
-      id: createId(),
-      name,
-      url,
-      category: String(item?.category || DEFAULT_CATEGORY).trim().slice(0, 16) || DEFAULT_CATEGORY,
-      order: result.length,
-    });
-  }
-
-  return result.length ? result : null;
-}
-
-function summarizeAiResult(list) {
-  const groups = new Map();
-  list.forEach((item) => {
-    if (!groups.has(item.category)) groups.set(item.category, []);
-    groups.get(item.category).push(item.name);
-  });
-  return [...groups.entries()]
-    .map(([category, names]) => `${category}（${names.length}）：${names.join("、")}`)
-    .join("\n");
-}
-
-/* 优先走本站 Worker 代理；没有 Worker（本地直接打开）时退回浏览器直连 */
-async function requestAiOrganize(config, messages) {
-  try {
-    const response = await fetch("/api/ai", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        apiKey: config.apiKey,
-        baseUrl: config.baseUrl,
-        model: config.model,
-        jsonMode: true,
-        messages,
-      }),
-    });
-    const data = await response.json().catch(() => null);
-    if (data) {
-      if (data.ok) return data.content;
-      throw new Error(data.message || data.error || "整理失败");
-    }
-  } catch (error) {
-    const message = String(error?.message || error);
-    if (!/failed to fetch|networkerror|load failed/i.test(message)) throw error;
-  }
-
-  const response = await fetch(`${config.baseUrl.replace(/\/+$/, "")}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${config.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: config.model,
-      messages,
-      temperature: 0.2,
-      response_format: { type: "json_object" },
-    }),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(data?.error?.message || `接口返回 ${response.status}`);
-  }
-  return data?.choices?.[0]?.message?.content || "";
-}
-
-async function runAiOrganize(event) {
-  event.preventDefault();
-
-  const config = collectAiConfig();
-  if (!config.apiKey) {
-    elements.aiSettings.open = true;
-    elements.aiStatus.textContent = "请先填写 API Key。";
-    elements.aiApiKey.focus();
-    return;
-  }
-  if (!shortcuts.length) {
-    elements.aiStatus.textContent = "现在还没有快捷方式可以整理。";
-    return;
-  }
-
-  elements.aiRunButton.disabled = true;
-  elements.aiApplyButton.disabled = true;
-  elements.aiResult.hidden = true;
-  elements.aiStatus.textContent = "小新正在整理…";
-
-  const messages = [
-    { role: "system", content: AI_SYSTEM_PROMPT },
-    {
-      role: "user",
-      content: JSON.stringify(shortcuts.map((item) => ({ name: item.name, url: item.url, category: item.category }))),
-    },
-  ];
-
-  try {
-    const organized = parseAiResult(await requestAiOrganize(config, messages));
-    if (!organized) throw new Error("模型返回的内容解析不出来，换个模型再试试。");
-
-    pendingAiShortcuts = organized;
-    elements.aiApplyButton.disabled = false;
-    elements.aiResult.hidden = false;
-    elements.aiResult.textContent = summarizeAiResult(organized);
-    elements.aiStatus.textContent = `整理完成：${shortcuts.length} 项 → ${organized.length} 项，确认无误后点「应用结果」。`;
-  } catch (error) {
-    elements.aiStatus.textContent = `没能整理成功：${error.message}`;
-  } finally {
-    elements.aiRunButton.disabled = false;
-  }
-}
-
-function applyAiResult() {
-  if (!pendingAiShortcuts?.length) return;
-  const count = pendingAiShortcuts.length;
-  if (!window.confirm(`将用整理后的 ${count} 项替换当前 ${shortcuts.length} 项快捷方式，确定吗？`)) return;
-
-  shortcuts = pendingAiShortcuts;
-  pendingAiShortcuts = null;
-  saveShortcuts();
-  renderShortcutArea();
-  renderDefaultCategoryOptions();
-  closeAiDialog();
-}
-
-/* ---------- 台词：每次打开页面随机一条，「换一句」换一条不重复的 ---------- */
-
-let quoteIndex = -1;
-
-function pickQuoteIndex(exclude) {
-  if (DAILY_QUOTES.length <= 1) return 0;
-
-  let index = Math.floor(Math.random() * DAILY_QUOTES.length);
-  let guard = 0;
-  while (index === exclude && guard < 12) {
-    index = Math.floor(Math.random() * DAILY_QUOTES.length);
-    guard += 1;
-  }
-  return index;
-}
-
-function renderQuote() {
-  quoteIndex = pickQuoteIndex(quoteIndex);
-  const quote = DAILY_QUOTES[quoteIndex] || DAILY_QUOTES[0];
-  if (elements.quoteText) elements.quoteText.textContent = quote.text;
-  if (elements.quoteAuthor) elements.quoteAuthor.textContent = `—— ${quote.author}`;
-}
-
-function setWeatherLoading(isLoading) {
-  elements.weatherPanel?.classList.toggle("is-loading", isLoading);
-  if (isLoading) setWeatherMetrics();
-}
-
-function setWeatherMetrics({ feels = "--", humidity = "--", wind = "--" } = {}) {
-  if (elements.weatherFeels) elements.weatherFeels.textContent = feels;
-  if (elements.weatherHumidity) elements.weatherHumidity.textContent = humidity;
-  if (elements.weatherWind) elements.weatherWind.textContent = wind;
-}
-
-function weatherFlavor(code, temperature) {
-  if (code >= 95) return "小新说：打雷了，快回家收衣服。";
-  if (code >= 71 && code <= 75) return "小新说：可以堆雪人了！";
-  if (code >= 61 && code <= 82) return "小新说：出门记得带伞哦。";
-  if (code === 45 || code === 48) return "小新说：雾好大，看不清楚路。";
-  if (temperature >= 30) return "小新说：好热，想吃冰淇淋。";
-  if (temperature <= 5) return "小新说：好冷，不想起床。";
-  if (code === 0) return "小新说：今天适合出去玩！";
-  return "小新说：今天天气还不错。";
-}
-
-function setWeatherState({ mark = "?", temp = "等待定位", location = "等待位置", desc = "小新正在抬头看天空…" }) {
-  elements.weatherIcon.textContent = mark;
-  elements.weatherTemp.textContent = temp;
-  elements.weatherLocation.textContent = location;
-  elements.weatherDesc.textContent = desc;
-  setWeatherLoading(false);
-}
-
-function formatCoordinates(latitude, longitude) {
-  return `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
-}
-
-async function resolveWeatherLocation(latitude, longitude) {
-  const fallback = `当前位置 ${formatCoordinates(latitude, longitude)}`;
-
-  try {
-    const params = new URLSearchParams({
-      latitude: String(latitude),
-      longitude: String(longitude),
-      localityLanguage: "zh",
-    });
-    const response = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?${params}`);
-    if (!response.ok) throw new Error("location lookup failed");
-    const data = await response.json();
-    const parts = [data.city || data.locality, data.principalSubdivision, data.countryName].filter(Boolean);
-    return parts.length ? parts.join(" · ") : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function getCurrentPosition() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) {
-      reject(new Error("Geolocation is not supported"));
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: false,
-      timeout: 9000,
-      maximumAge: 10 * 60 * 1000,
-    });
-  });
-}
-
-async function loadWeather() {
-  setWeatherLoading(true);
-  elements.weatherDesc.textContent = "小新正在抬头看天空…";
-  elements.weatherRefreshButton.disabled = true;
-
-  try {
-    const position = await getCurrentPosition();
-    const { latitude, longitude } = position.coords;
-    const locationName = await resolveWeatherLocation(latitude, longitude);
-    const params = new URLSearchParams({
-      latitude: latitude.toFixed(4),
-      longitude: longitude.toFixed(4),
-      current: "temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m",
-      timezone: "auto",
-    });
-    const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params}`);
-    if (!response.ok) throw new Error("Weather request failed");
-
-    const data = await response.json();
-    const current = data.current;
-    const info = weatherCodeMap[current?.weather_code] || { label: "天气已更新", mark: "天" };
-    const tempUnit = data.current_units?.temperature_2m || "°C";
-    const windUnit = data.current_units?.wind_speed_10m || "km/h";
-    const temperature = Math.round(current.temperature_2m);
-    const humidity = Math.round(current.relative_humidity_2m);
-    const wind = Math.round(current.wind_speed_10m);
-    const feels = Math.round(current.apparent_temperature);
-
-    setWeatherMetrics({
-      feels: `${feels}${tempUnit}`,
-      humidity: `${humidity}%`,
-      wind: `${wind}${windUnit}`,
-    });
-    setWeatherState({
-      mark: info.mark,
-      temp: `${temperature}${tempUnit} · ${info.label}`,
-      location: locationName,
-      desc: weatherFlavor(current?.weather_code, temperature),
-    });
-  } catch {
-    setWeatherMetrics();
-    setWeatherState({
-      mark: "云",
-      temp: "天气暂时看不到",
-      location: "位置暂时不可用",
-      desc: "小新没找到定位，允许定位或稍后点一下刷新。",
-    });
-  } finally {
-    elements.weatherRefreshButton.disabled = false;
-  }
-}
-
 function renderEngines() {
   elements.engineSelect.innerHTML = "";
   elements.engineMenu.innerHTML = "";
@@ -1753,6 +1332,7 @@ function renderShortcuts({ animate = false } = {}) {
     node.classList.toggle("is-pinned", Boolean(shortcut.pinned));
     link.href = shortcut.url;
     link.draggable = false;
+    link.addEventListener("click", () => { shortcut.visits = (shortcut.visits || 0) + 1; shortcut.lastVisited = new Date().toISOString(); saveShortcuts(); flushCloudData(); });
     applyShortcutIcon(icon, shortcut);
     title.textContent = shortcut.name;
     host.textContent = getHostname(shortcut.url);
@@ -1867,136 +1447,6 @@ function deleteEditingShortcut() {
   saveShortcuts();
   closeDialog();
   renderShortcutArea();
-}
-
-function getTodayHistoryFallback() {
-  const now = new Date();
-  const key = `${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  return (
-    fallbackHistoryEvents[key] || {
-      domestic: [
-        {
-          year: "国内",
-          title: "今天国内的小故事还没翻到",
-          detail: "在线源暂时没回应，稍后刷新一下，小新再翻一次日历。",
-        },
-      ],
-      world: [
-        {
-          year: "国际",
-          title: "今天国际的小故事还没翻到",
-          detail: "在线源暂时没回应，稍后刷新一下，小新再翻一次日历。",
-        },
-      ],
-    }
-  );
-}
-
-function normalizeHistoryGroup(events, fallback) {
-  const list = Array.isArray(events) ? events : [];
-  const normalized = list
-    .filter((event) => event && typeof event === "object")
-    .map((event) => ({
-      year: String(event.year || "今日").slice(0, 16),
-      title: String(event.title || event.event || "暂无事件").slice(0, 72),
-      detail: String(event.detail || event.desc || event.title || "暂无更多介绍。").slice(0, 220),
-    }))
-    .slice(0, 2);
-  return normalized.length ? normalized : fallback;
-}
-
-function isDomesticHistoryEvent(event) {
-  return /中国|中华|我国|清朝|民国|北京|上海|南京|香港|澳门|台湾|长城|故宫|共产党|抗日|解放军|唐朝|宋朝|元朝|明朝|清廷|北洋|国民政府/.test(
-    `${event.title} ${event.detail}`,
-  );
-}
-
-function groupPublicHistoryEvents(data) {
-  const events = Array.isArray(data?.data?.items)
-    ? data.data.items
-        .map((event) => ({
-          year: String(event.year || "今日").slice(0, 16),
-          title: String(event.title || "暂无事件").slice(0, 72),
-          detail: String(event.description || event.detail || event.title || "暂无更多介绍。").slice(0, 220),
-        }))
-        .filter((event) => event.title && event.title !== "暂无事件")
-    : [];
-
-  if (!events.length) throw new Error("public history unavailable");
-
-  return {
-    domestic: events.filter(isDomesticHistoryEvent).slice(0, 2),
-    world: events.filter((event) => !isDomesticHistoryEvent(event)).slice(0, 2),
-    source: "browser_api",
-  };
-}
-
-function renderHistoryGroup(container, events, fallback) {
-  container.innerHTML = "";
-  const items = normalizeHistoryGroup(events, fallback);
-
-  items.forEach((event, index) => {
-    const details = document.createElement("details");
-    details.className = "history-event";
-    details.open = index === 0;
-
-    const summary = document.createElement("summary");
-    const year = document.createElement("span");
-    const title = document.createElement("strong");
-    const detail = document.createElement("p");
-
-    year.textContent = event.year;
-    title.textContent = event.title;
-    detail.textContent = event.detail;
-
-    summary.append(year, title);
-    details.append(summary, detail);
-    container.append(details);
-  });
-}
-
-function setHistoryLoading(isLoading) {
-  elements.historyPanel?.classList.toggle("is-loading", isLoading);
-}
-
-function setTodayHistory(data = {}) {
-  const fallback = getTodayHistoryFallback();
-  renderHistoryGroup(elements.todayHistoryDomestic, data.domestic, fallback.domestic);
-  renderHistoryGroup(elements.todayHistoryWorld, data.world, fallback.world);
-
-  const sourceLabels = {
-    fallback: "本地精选（在线源暂时不可用）",
-    domestic_api: "国内可访问 API",
-    browser_api: "国内直连 API",
-    mixed: "国内 API + 精选",
-  };
-  elements.todayHistorySource.textContent = sourceLabels[data.source] || data.source || "本地精选";
-  setHistoryLoading(false);
-}
-
-async function loadTodayHistory() {
-  setHistoryLoading(true);
-  elements.todayHistorySource.textContent = "正在翻日历";
-
-  try {
-    const response = await fetch("/api/today-history");
-    if (!response.ok) throw new Error("history unavailable");
-    const data = await response.json();
-    if (data.source !== "fallback") {
-      setTodayHistory(data);
-      return;
-    }
-  } catch {
-    // A static host has no Worker route. Continue with the public CORS-enabled source.
-  }
-
-  try {
-    const response = await fetch(TODAY_HISTORY_PUBLIC_API, { cache: "no-store" });
-    if (!response.ok) throw new Error("public history unavailable");
-    setTodayHistory(groupPublicHistoryEvents(await response.json()));
-  } catch {
-    setTodayHistory({ ...getTodayHistoryFallback(), source: "fallback" });
-  }
 }
 
 function applyDarkMode(enabled) {
@@ -2143,7 +1593,6 @@ elements.syncPullButton.addEventListener("click", () => pullCloudData());
 elements.syncKeyVisibleToggle.addEventListener("change", () => {
   elements.syncKeyInput.type = elements.syncKeyVisibleToggle.checked ? "text" : "password";
 });
-elements.weatherRefreshButton.addEventListener("click", loadWeather);
 elements.siteNameButton.addEventListener("click", openSiteNameDialog);
 elements.siteNameForm.addEventListener("submit", saveSiteNameFromDialog);
 elements.closeSiteNameDialogButton.addEventListener("click", closeSiteNameDialog);
@@ -2152,7 +1601,6 @@ elements.resetSiteNameButton.addEventListener("click", () => {
   elements.siteNameInput.value = DEFAULT_SITE_NAME;
   elements.siteNameInput.focus();
 });
-elements.quoteRefreshButton.addEventListener("click", renderQuote);
 elements.defaultCategorySelect.addEventListener("change", (event) => {
   setDefaultCategory(event.target.value);
 });
@@ -2166,23 +1614,19 @@ elements.addEngineRowButton.addEventListener("click", () => {
 });
 elements.closeEngineDialogButton.addEventListener("click", closeEngineDialog);
 elements.cancelEngineDialogButton.addEventListener("click", closeEngineDialog);
-elements.aiOrganizeButton.addEventListener("click", openAiDialog);
-elements.aiForm.addEventListener("submit", runAiOrganize);
-elements.aiApplyButton.addEventListener("click", applyAiResult);
-elements.closeAiDialogButton.addEventListener("click", closeAiDialog);
-elements.cancelAiDialogButton.addEventListener("click", closeAiDialog);
 
 applySiteName(loadSiteName());
-renderQuote();
 renderSearchTarget();
 scheduleClock();
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) scheduleClock();
 });
 initDarkMode();
-loadWeather();
-loadTodayHistory();
 renderEngines();
 render();
 renderSearchHistory();
 initSync();
+
+initDashboard({ openSurface });
+initAiOrganizer({ getShortcuts: () => shortcuts, applyShortcuts: list => { shortcuts = list; selectedCategory = ALL_CATEGORY; saveShortcuts(); renderShortcutArea(); }, openSurface, closeSurface });
+document.querySelectorAll("[data-close-dialog]").forEach(button => button.addEventListener("click", () => closeSurface(button.closest("dialog"))));

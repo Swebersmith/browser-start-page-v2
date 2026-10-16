@@ -5,7 +5,9 @@ import { fileURLToPath } from "node:url";
 
 // Use the same local Workers runtime that the project's Wrangler ships with.
 const require = createRequire(import.meta.url);
-const { Miniflare, convertV4MiniflareOptions } = createRequire(require.resolve("wrangler/package.json"))("miniflare");
+const wranglerRequire = createRequire(require.resolve("wrangler/package.json"));
+const { Miniflare, convertV4MiniflareOptions } = wranglerRequire("miniflare");
+const { buildSync } = wranglerRequire("esbuild");
 const runtimeOptions = options => convertV4MiniflareOptions ? convertV4MiniflareOptions(options) : options;
 const password = "test-only-creation-password";
 const payload = { shortcuts: [], widgets: [], siteName: "测试首页" };
@@ -16,7 +18,7 @@ let database;
 before(async () => {
   const options = {
     modules: true,
-    scriptPath: fileURLToPath(new URL("../src/worker.js", import.meta.url)),
+    script: buildSync({ entryPoints: [fileURLToPath(new URL("../src/worker.js", import.meta.url))], bundle: true, write: false, format: "esm", platform: "browser" }).outputFiles[0].text,
     compatibilityDate: "2026-06-30",
     d1Databases: ["DB"],
   };
