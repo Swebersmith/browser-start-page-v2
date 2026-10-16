@@ -105,3 +105,16 @@ test("invalid payloads and unsupported methods never create records", async () =
   assert.equal((await request(worker, "invalid-code", "DELETE", password)).status, 405);
   assert.equal((await (await request(worker, "invalid-code", "GET")).json()).exists, false);
 });
+
+test("real D1 batch cleanup retains one current-day history slot", async () => {
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const cached = { date: today, domestic: [{ year: "1964", title: "当天资料", detail: "缓存测试" }], world: [], fetchedAt: new Date().toISOString() };
+  await database.prepare("CREATE TABLE IF NOT EXISTS history_cache (date_key TEXT PRIMARY KEY, payload TEXT NOT NULL, fetched_at TEXT NOT NULL)").run();
+  for (const key of ["today", "legacy-01", "legacy-02"]) await database.prepare("INSERT INTO history_cache VALUES (?, ?, ?)").bind(key, JSON.stringify(cached), cached.fetchedAt).run();
+  const response = await worker.dispatchFetch("https://sync.test/api/today-history");
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal((await response.json()).cached, true);
+  assert.equal((await database.prepare("SELECT COUNT(*) AS count FROM history_cache").first()).count, 1);
+  assert.equal((await database.prepare("SELECT date_key FROM history_cache").first()).date_key, "today");
+});

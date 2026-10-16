@@ -147,12 +147,13 @@ export function initDashboard({ openSurface }) {
 
   async function moreHistory(item, article, button) {
     if (!item.url) return;
+    const date = history?.date;
     button.disabled = true; button.textContent = "正在读取介绍…";
     const controller = new AbortController(); detailControllers.add(controller);
     try {
       const data = detailCache.get(item.url) || await jsonRequest(`/api/history-detail?${new URLSearchParams({ url: item.url })}`, { signal: controller.signal, timeout: 7000 });
+      if (!article.isConnected || controller.signal.aborted || !$("historyDialog").open || date !== localDate() || history?.date !== date) return;
       detailCache.set(item.url, data);
-      if (!article.isConnected || controller.signal.aborted) return;
       article.append(text("h4", `相关词条：${data.title}`), text("p", data.detail));
       button.remove();
     } catch {
@@ -193,18 +194,31 @@ export function initDashboard({ openSurface }) {
     if (!history && !historyLoading) loadHistory();
   }
 
+  function discardExpiredHistory(date) {
+    if (read(HISTORY_CACHE)?.date !== date) {
+      try { localStorage.removeItem(HISTORY_CACHE); } catch { /* Optional local storage. */ }
+    }
+    if (historyDay !== date || (history && history.date !== date)) {
+      history = null;
+      detailControllers.forEach(controller => controller.abort());
+      detailControllers.clear(); detailCache.clear();
+      $("historyDetailList").replaceChildren();
+    }
+    historyDay = date;
+  }
+
   async function loadHistory() {
     if (historyLoading) return;
     historyLoading = true;
     const date = localDate();
-    historyDay = date;
-    if (history?.date !== date) history = null;
+    discardExpiredHistory(date);
     $("todayHistorySource").textContent = "正在更新";
     $("historyDetailStatus").textContent = `${date} · 正在更新资料…`;
     $("historyRefreshButton").disabled = true;
     renderHistoryCards();
     try {
       const data = await jsonRequest(`/api/today-history?date=${date}`, { timeout: 9000 });
+      if (date !== localDate()) return;
       if (data.date !== date || !(data.domestic?.length || data.world?.length)) throw new Error("Wrong date or empty history");
       history = data; store(HISTORY_CACHE, data);
       $("todayHistorySource").textContent = data.stale ? "缓存资料" : "查看详情";
@@ -214,13 +228,18 @@ export function initDashboard({ openSurface }) {
       $("historyDetailStatus").textContent = history ? `${date} · 在线源暂不可用，展示本机同日缓存。` : `${date} · 暂未获取到当天资料，请稍后重试。`;
     } finally {
       historyLoading = false; $("historyRefreshButton").disabled = false;
+      if (date !== localDate()) { loadHistory(); return; }
       renderHistoryCards(); if ($("historyDialog").open) renderHistoryDetails();
     }
   }
   $("historyOpenButton").addEventListener("click", () => openHistory($("historyPanel")));
   $("historyPanel").addEventListener("click", event => { if (!event.target.closest("button")) openHistory($("historyPanel")); });
   $("historyRefreshButton").addEventListener("click", loadHistory);
-  $("historyDialog").addEventListener("close", () => { detailControllers.forEach(controller => controller.abort()); detailControllers.clear(); });
+  $("historyDialog").addEventListener("close", () => {
+    detailControllers.forEach(controller => controller.abort());
+    detailControllers.clear(); detailCache.clear();
+    $("historyDetailList").replaceChildren();
+  });
   document.addEventListener("visibilitychange", () => { if (!document.hidden && history?.date !== localDate()) loadHistory(); });
   window.addEventListener("online", () => { loadHistory(); if (weatherPlace) loadWeather(); });
   window.setInterval(() => { if (!document.hidden && historyDay !== localDate()) loadHistory(); }, 60000);

@@ -70,12 +70,21 @@ async function historyCache(db, key, payload) {
   if (!db) return null;
   try {
     await db.prepare("CREATE TABLE IF NOT EXISTS history_cache (date_key TEXT PRIMARY KEY, payload TEXT NOT NULL, fetched_at TEXT NOT NULL)").run();
+    const today = dateParts().date;
+    const cleanup = db.prepare("DELETE FROM history_cache WHERE date_key <> 'today' OR json_extract(payload, '$.date') IS NOT ?").bind(today);
+    // A single slot replaces the old per-anniversary records. Other requested
+    // dates remain readable from upstream, but are never retained in D1.
+    if (key !== today || (payload && payload.date !== today)) {
+      await cleanup.run();
+      return null;
+    }
     if (payload) {
-      await db.prepare("INSERT INTO history_cache (date_key, payload, fetched_at) VALUES (?, ?, ?) ON CONFLICT(date_key) DO UPDATE SET payload=excluded.payload, fetched_at=excluded.fetched_at")
-        .bind(key, JSON.stringify(payload), payload.fetchedAt).run();
+      await db.batch([cleanup, db.prepare("INSERT INTO history_cache (date_key, payload, fetched_at) VALUES ('today', ?, ?) ON CONFLICT(date_key) DO UPDATE SET payload=excluded.payload, fetched_at=excluded.fetched_at")
+        .bind(JSON.stringify(payload), payload.fetchedAt)]);
       return payload;
     }
-    const row = await db.prepare("SELECT payload FROM history_cache WHERE date_key = ?").bind(key).first();
+    const results = await db.batch([cleanup, db.prepare("SELECT payload FROM history_cache WHERE date_key = 'today'")]);
+    const row = results[1].results[0];
     return row ? JSON.parse(row.payload) : null;
   } catch { return null; }
 }
@@ -85,8 +94,8 @@ export async function handleHistory(request, env) {
   let date;
   try { date = dateParts(new URL(request.url).searchParams.get("date")); } catch { /* Invalid calendar date. */ }
   if (!date) return reply({ error: "INVALID_DATE" }, 400);
-  const cached = await historyCache(env.DB, date.key);
-  if (cached && Date.now() - Date.parse(cached.fetchedAt) < 24 * 3600_000) return reply({ ...cached, date: date.date, cached: true }, 200, 300);
+  const cached = await historyCache(env.DB, date.date);
+  if (cached && Date.now() - Date.parse(cached.fetchedAt) < 24 * 3600_000) return reply({ ...cached, date: date.date, cached: true });
   const controller = new AbortController();
   try {
     const result = await Promise.any([
@@ -99,8 +108,8 @@ export async function handleHistory(request, env) {
         }),
     ]);
     const payload = { ...result, date: date.date, source: "百度百科 · 60s API", fetchedAt: new Date().toISOString(), stale: false };
-    await historyCache(env.DB, date.key, payload);
-    return reply(payload, 200, 300);
+    await historyCache(env.DB, date.date, payload);
+    return reply(payload);
   } catch {
     if (cached) return reply({ ...cached, date: date.date, cached: true, stale: true });
     return reply({ date: date.date, domestic: [], world: [], unavailable: true, source: "资料暂时不可用" }, 503);
@@ -119,7 +128,7 @@ export async function handleHistoryDetail(request) {
     const data = await fetchJson(`https://baike.baidu.com/api/openapi/BaikeLemmaCardApi?appid=379020&bk_key=${encodeURIComponent(word)}`);
     const detail = cleanText(data.abstract, 6000);
     if (!detail) throw new Error("No article abstract");
-    return reply({ title: cleanText(data.title, 160), detail, url: link, source: "百度百科" }, 200, 3600);
+    return reply({ title: cleanText(data.title, 160), detail, url: link, source: "百度百科" });
   } catch { return reply({ error: "DETAIL_UNAVAILABLE" }, 502); }
 }
 

@@ -1,12 +1,31 @@
 import assert from "node:assert/strict";
-import { afterEach, test } from "node:test";
+import { beforeEach, afterEach, test } from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { handleHistory, handleHistoryDetail, handleWeather, handleCities } from "../src/content.js";
 import worker from "../src/worker.js";
 const realFetch = globalThis.fetch;
+const NativeDate = Date;
+function freezeDate(value) {
+  const now = new NativeDate(value).getTime();
+  globalThis.Date = class extends NativeDate {
+    constructor(...args) { super(...(args.length ? args : [now])); }
+    static now() { return now; }
+  };
+}
 const db = new DatabaseSync(":memory:");
-const DB = { prepare(sql) { let args = []; return { bind(...values) { args = values; return this; }, async run() { db.prepare(sql).run(...args); return { success: true }; }, async first() { return db.prepare(sql).get(...args) || null; } }; } };
-afterEach(() => { globalThis.fetch = realFetch; });
+const DB = {
+  prepare(sql) { let args = []; return { bind(...values) { args = values; return this; }, async run() { db.prepare(sql).run(...args); return { success: true }; }, execute() { return { success: true, results: db.prepare(sql).all(...args) }; } }; },
+  async batch(statements) {
+    db.exec("BEGIN");
+    try { const results = statements.map(statement => statement.execute()); db.exec("COMMIT"); return results; }
+    catch (error) { db.exec("ROLLBACK"); throw error; }
+  },
+};
+beforeEach(() => {
+  freezeDate("2026-10-16T04:00:00Z");
+  db.exec("CREATE TABLE IF NOT EXISTS history_cache (date_key TEXT PRIMARY KEY, payload TEXT NOT NULL, fetched_at TEXT NOT NULL); DELETE FROM history_cache");
+});
+afterEach(() => { globalThis.fetch = realFetch; globalThis.Date = NativeDate; });
 const event = { year: "1964", title: "中国首次原子弹试验成功", desc: "中国于1964年10月16日首次原子弹试验成功。", link: "https://baike.baidu.com/item/原子弹" };
 const response = data => Response.json(data);
 
@@ -18,15 +37,45 @@ test("history races sources and preserves complete summaries and source links", 
   assert.equal(data.world.length, 1);
 });
 
-test("history survives all upstream failures using the same calendar-day D1 cache", async () => {
-  const old = { date: "2025-10-16", domestic: [event], world: [], fetchedAt: "2025-10-16T00:00:00Z", source: "百度百科" };
-  db.prepare("INSERT OR REPLACE INTO history_cache VALUES (?, ?, ?)").run("10-16", JSON.stringify(old), old.fetchedAt);
+test("history retains exactly one current-day cache and cleans legacy records", async () => {
+  const today = { date: "2026-10-16", domestic: [event], world: [], fetchedAt: "2026-10-16T00:00:00Z", source: "百度百科" };
+  for (const key of ["today", "10-15", "01-01"]) db.prepare("INSERT INTO history_cache VALUES (?, ?, ?)").run(key, JSON.stringify(today), today.fetchedAt);
   globalThis.fetch = async () => { throw new Error("Network down"); };
   const data = await (await handleHistory(new Request("https://test/api/today-history?date=2026-10-16"), { DB })).json();
-  assert.equal(data.stale, true); assert.equal(data.date, "2026-10-16"); assert.equal(data.domestic.length, 1);
+  assert.equal(data.cached, true); assert.equal(data.date, "2026-10-16"); assert.equal(data.domestic.length, 1);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM history_cache").get().count, 1);
+  assert.equal(db.prepare("SELECT date_key FROM history_cache").get().date_key, "today");
+  freezeDate("2026-10-17T04:00:00Z");
   const missing = await handleHistory(new Request("https://test/api/today-history?date=2026-10-17"), { DB });
   assert.equal(missing.status, 503);
   assert.deepEqual((await missing.json()).domestic, []);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM history_cache").get().count, 0);
+});
+
+test("a previous year's anniversary is deleted instead of reused", async () => {
+  const old = { date: "2025-10-16", domestic: [event], world: [], fetchedAt: "2025-10-16T00:00:00Z" };
+  db.prepare("INSERT INTO history_cache VALUES ('today', ?, ?)").run(JSON.stringify(old), old.fetchedAt);
+  globalThis.fetch = async () => { throw new Error("Network down"); };
+  assert.equal((await handleHistory(new Request("https://test/api/today-history?date=2026-10-16"), { DB })).status, 503);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM history_cache").get().count, 0);
+});
+
+test("requests for other dates do not populate additional cache entries", async () => {
+  globalThis.fetch = async url => String(url).includes("baike.baidu.com") ? response({ "10": { "1016": [event], "1015": [event] } }) : Promise.reject(new Error("Provider blocked"));
+  await handleHistory(new Request("https://test/api/today-history?date=2026-10-16"), { DB });
+  assert.equal((await handleHistory(new Request("https://test/api/today-history?date=2026-10-15"), { DB })).status, 200);
+  const rows = db.prepare("SELECT payload FROM history_cache").all();
+  assert.equal(rows.length, 1); assert.equal(JSON.parse(rows[0].payload).date, "2026-10-16");
+});
+
+test("a slow response crossing midnight cannot repopulate yesterday's cache", async () => {
+  globalThis.fetch = async url => {
+    freezeDate("2026-10-17T04:00:00Z");
+    if (String(url).includes("baike.baidu.com")) return response({ "10": { "1016": [event] } });
+    throw new Error("Provider blocked");
+  };
+  assert.equal((await handleHistory(new Request("https://test/api/today-history?date=2026-10-16"), { DB })).status, 200);
+  assert.equal(db.prepare("SELECT COUNT(*) AS count FROM history_cache").get().count, 0);
 });
 
 test("a working backup is used when the direct history source fails", async () => {
